@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0d12">
+<title>BTC 15m — Kalshi Entry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body{ margin:0; height:100%; background:#0a0d12; overscroll-behavior:none; -webkit-text-size-adjust:100%; }
+  :root{
+    --bg:#0a0d12;
+    --panel:#10151d;
+    --line:#1c2530;
+    --text:#e8edf4;
+    --dim:#6b7686;
+    --up:#26a690;
+    --up-soft:rgba(38,166,144,.85);
+    --down:#e0455f;
+    --down-soft:rgba(224,69,95,.85);
+    --poc:#f0c94a;
+    --accent:#4a90e0;
+    --gold:#c9a227;
+    --gold-dim:rgba(201,162,39,.08);
+  }
+  *{box-sizing:border-box;}
+  .btcv-root{
+    background:var(--bg);
+    color:var(--text);
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    overflow:hidden;
+    height:100vh;
+    height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  .btcv-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    padding:14px 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--panel), var(--bg));
+  }
+  .btcv-price-wrap{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .btcv-symbol{font-size:12px; letter-spacing:.12em; color:var(--dim);}
+  .btcv-price{font-size:28px; font-weight:600; font-variant-numeric:tabular-nums;}
+  .btcv-chg{font-size:14px; font-variant-numeric:tabular-nums;}
+  .btcv-chg.up{color:var(--up);}
+  .btcv-chg.down{color:var(--down);}
+  .btcv-meta{display:flex; gap:20px; font-size:12px; color:var(--dim); align-items:center; flex-wrap:wrap;}
+  .btcv-meta b{color:var(--text); font-weight:600; font-variant-numeric:tabular-nums;}
+  .btcv-dot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .btcv-dot.live{background:var(--up); box-shadow:0 0 8px var(--up);}
+  .btcv-dot.off{background:var(--down);}
+
+  .btcv-controls{display:flex; gap:8px; flex-wrap:wrap;}
+  .btcv-btn{
+    font-family:inherit; font-size:12.5px; font-weight:600; color:var(--text);
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    padding:10px 15px; cursor:pointer; min-height:40px; white-space:nowrap;
+    -webkit-tap-highlight-color:transparent; user-select:none;
+  }
+  .btcv-btn:active{transform:scale(.97);}
+  .btcv-btn.active{border-color:var(--up); color:var(--up); background:rgba(38,166,144,0.12);}
+  .btcv-btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .btcv-reasons{font-size:11.5px; color:var(--dim); display:flex; flex-direction:column; gap:7px;}
+  .btcv-reasons span b{color:var(--text);}
+
+  .btcv-main{flex:1; display:flex; min-height:0;}
+  .btcv-chart-col{flex:1; display:flex; flex-direction:column; min-width:0; min-height:0;}
+  .btcv-body{position:relative; flex:1; min-height:360px; touch-action:none;}
+  .btcv-canvas{display:block; width:100%; height:100%; touch-action:none;}
+
+  .btcv-zoomctl{
+    position:absolute; top:10px; right:10px; display:flex; gap:6px; z-index:5;
+  }
+  .btcv-zbtn{
+    font-family:inherit; font-size:15px; font-weight:700; color:var(--text);
+    background:rgba(16,21,29,0.88); border:1px solid var(--line); border-radius:8px;
+    width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none;
+    backdrop-filter:blur(4px);
+  }
+  .btcv-zbtn:active{transform:scale(.94);}
+  .btcv-zbtn.live-badge{width:auto; padding:0 10px; font-size:10.5px; letter-spacing:.05em;}
+  .btcv-zbtn.live-badge.on{color:var(--up); border-color:var(--up);}
+  .btcv-zbtn.live-badge.off{color:var(--gold); border-color:var(--gold);}
+
+  .btcv-foot{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+    padding:10px 18px;
+    border-top:1px solid var(--line); font-size:11px; color:var(--dim);
+    background:var(--panel);
+  }
+  .btcv-foot b{color:var(--text);}
+  .btcv-legend{display:flex; gap:16px; align-items:center; flex-wrap:wrap;}
+  .btcv-sw{width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:5px;}
+
+  .btcv-side{
+    width:320px; flex-shrink:0; display:flex; flex-direction:column;
+    border-left:1px solid var(--line); background:var(--panel); overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .btcv-round-card{border-bottom:1px solid var(--line);}
+
+  .btcv-hero{padding:18px 20px; transition:background .3s ease;}
+  .btcv-hero-label{
+    font-family:'Space Grotesk', ui-monospace, sans-serif;
+    font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--dim); margin-bottom:9px;
+  }
+  .btcv-hero-value{
+    font-family:'Space Grotesk', ui-monospace, sans-serif;
+    font-size:30px; font-weight:700; letter-spacing:-.01em; line-height:1.08;
+  }
+  .btcv-hero-sub{
+    margin-top:9px; font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-size:12px; color:var(--dim); line-height:1.5;
+  }
+  .btcv-hero-sub b{color:var(--text);}
+  .btcv-hero.state-scanning{background:var(--gold-dim);}
+  .btcv-hero.state-locked-up{background:rgba(38,166,144,.10);}
+  .btcv-hero.state-locked-down{background:rgba(224,69,95,.10);}
+  .btcv-hero.state-skip{background:rgba(107,118,134,.08);}
+  .tone-up{color:var(--up) !important;}
+  .tone-down{color:var(--down) !important;}
+  .tone-gold{color:var(--gold) !important;}
+  .tone-muted{color:var(--dim) !important;}
+
+  .btcv-conf-row{padding:0 20px 16px;}
+  .btcv-conf-bar{height:5px; border-radius:3px; background:rgba(255,255,255,0.07); overflow:hidden;}
+  .btcv-conf-fill{height:100%; width:0%; background:var(--accent); transition:width .35s ease;}
+  .btcv-round-card .btcv-reasons{padding:0 20px 18px;}
+  .btcv-freeze-note{
+    margin:0 20px 16px; padding:8px 10px; font-size:10.5px; color:var(--dim);
+    border:1px dashed var(--line); border-radius:7px; line-height:1.4;
+  }
+
+  .btcv-winrate-card{padding:18px 20px;}
+
+  .btcv-kalshi-card{padding:18px 20px; border-top:1px solid var(--line);}
+  .btcv-kalshi-title{font-size:11px; letter-spacing:.1em; color:var(--dim); margin-bottom:10px; font-weight:600; display:flex; align-items:center; justify-content:space-between;}
+  .btcv-kalshi-dot{width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:5px;}
+  .btcv-kalshi-dot.live{background:var(--up);}
+  .btcv-kalshi-dot.off{background:var(--down);}
+  .btcv-kv-row{display:flex; justify-content:space-between; font-size:12px; margin:5px 0; color:var(--dim); gap:10px;}
+  .btcv-kv-row b{color:var(--text); font-weight:600; font-variant-numeric:tabular-nums;}
+  .btcv-kalshi-via{font-size:10px; margin-top:9px; line-height:1.4; color:var(--dim);}
+  .btcv-kalshi-ticker{font-size:10px; color:var(--dim); margin-top:2px; opacity:.8;}
+  .btcv-winrate-title{font-size:11px; letter-spacing:.1em; color:var(--dim); margin-bottom:8px; font-weight:600;}
+  .btcv-winrate-big{font-size:36px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1;}
+  .btcv-winrate-sub{font-size:11.5px; color:var(--dim); margin:6px 0 14px;}
+  .btcv-history-chips{display:flex; flex-wrap:wrap; gap:5px;}
+  .btcv-chip{
+    width:23px; height:23px; border-radius:5px; display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:700; background:rgba(255,255,255,0.05); color:var(--dim);
+  }
+  .btcv-chip.win{background:rgba(38,166,144,0.18); color:var(--up);}
+  .btcv-chip.loss{background:rgba(224,69,95,0.18); color:var(--down);}
+  .btcv-empty-note{font-size:11px; color:var(--dim); opacity:.7;}
+
+  /* ---- tablet / narrower layouts ---- */
+  @media (max-width: 980px){
+    .btcv-main{flex-direction:column; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+    .btcv-side{
+      width:auto; flex-direction:row; flex-wrap:wrap;
+      border-left:none; border-top:1px solid var(--line); overflow-y:visible;
+    }
+    .btcv-round-card{flex:1 1 320px; border-right:1px solid var(--line); border-bottom:none;}
+    .btcv-winrate-card{flex:1 1 220px;}
+    .btcv-body{min-height:440px;}
+  }
+  @media (max-width: 640px){
+    .btcv-head{padding:12px;}
+    .btcv-price{font-size:23px;}
+    .btcv-side{flex-direction:column;}
+    .btcv-round-card{border-right:none; border-bottom:1px solid var(--line);}
+    .btcv-controls{width:100%;}
+    .btcv-btn{flex:1;}
+  }
+  @media (pointer:coarse){
+    .btcv-btn{min-height:44px;}
+  }
+</style>
+</head>
+<body>
+<div class="btcv-root">
+  <div class="btcv-head">
+    <div class="btcv-price-wrap">
+      <span class="btcv-symbol">BTC-USD</span>
+      <span class="btcv-price" id="btcv-price">—</span>
+      <span class="btcv-chg" id="btcv-chg">—</span>
+    </div>
+    <div class="btcv-meta">
+      <span><span class="btcv-dot off" id="btcv-dot"></span><span id="btcv-status">connecting…</span></span>
+      <span>trades <b id="btcv-tradecount">0</b></span>
+    </div>
+    <div class="btcv-controls">
+      <button class="btcv-btn" id="btcv-alert-btn" type="button">🔔 Enable Alerts</button>
+      <button class="btcv-btn active" id="btcv-sound-btn" type="button">🔊 Sound</button>
+    </div>
+  </div>
+
+  <div class="btcv-main">
+    <div class="btcv-chart-col">
+      <div class="btcv-body">
+        <canvas class="btcv-canvas" id="btcv-canvas"></canvas>
+        <div class="btcv-zoomctl">
+          <button class="btcv-zbtn live-badge on" id="btcv-live-badge" type="button">LIVE</button>
+          <button class="btcv-zbtn" id="btcv-zoom-out" type="button">－</button>
+          <button class="btcv-zbtn" id="btcv-zoom-in" type="button">＋</button>
+        </div>
+      </div>
+      <div class="btcv-foot">
+        <span>POC <b id="btcv-poc">—</b></span>
+        <div class="btcv-legend">
+          <span><span class="btcv-sw" style="background:var(--up-soft)"></span>buy volume</span>
+          <span><span class="btcv-sw" style="background:var(--down-soft)"></span>sell volume</span>
+          <span><span class="btcv-sw" style="background:var(--poc)"></span>point of control</span>
+          <span>🔒 locked entry · ⚠ flip warning · ● now · ┊ close · ● block trade · ▭ OB zone</span>
+        </div>
+        <span>pinch to zoom · drag to pan · double-tap to reset</span>
+      </div>
+    </div>
+
+    <div class="btcv-side">
+      <div class="btcv-round-card">
+        <div class="btcv-hero state-scanning" id="btcv-hero-block">
+          <div class="btcv-hero-label">This round's call</div>
+          <div class="btcv-hero-value tone-gold" id="btcv-call-label">SCANNING</div>
+          <div class="btcv-hero-sub" id="btcv-call-sub">reading the tape</div>
+        </div>
+        <div class="btcv-conf-row">
+          <div class="btcv-conf-bar"><div class="btcv-conf-fill" id="btcv-conf-fill"></div></div>
+        </div>
+        <div class="btcv-reasons" id="btcv-reasons"></div>
+        <div class="btcv-freeze-note">Freezes the moment it locks — no re-entries, no direction changes. It'll flag ⚠️ any time the tape flips and holds against your side, whether you're up or down, so you can decide whether to close out.</div>
+      </div>
+
+      <div class="btcv-kalshi-card">
+        <div class="btcv-kalshi-title">
+          <span><span class="btcv-kalshi-dot off" id="btcv-kalshi-dot"></span>KALSHI REAL PRICE TO BEAT</span>
+        </div>
+        <div id="btcv-kalshi-body">
+          <div class="btcv-kv-row"><span>status</span><b>connecting…</b></div>
+        </div>
+      </div>
+
+      <div class="btcv-winrate-card">
+        <div class="btcv-winrate-title">WIN RATE</div>
+        <div class="btcv-winrate-big" id="btcv-winrate-pct">—</div>
+        <div class="btcv-winrate-sub" id="btcv-winrate-sub">no scored rounds yet</div>
+        <div class="btcv-history-chips" id="btcv-history-chips"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PRODUCT = "BTC-USD";
+  const WINDOW_MIN = 15; // matches Kalshi's 15m window
+  const ROWS = 44;
+  const BUCKET_SEC = 15;                    // 15s candles
+  const TOTAL_BUCKETS = Math.ceil((WINDOW_MIN*60) / BUCKET_SEC); // 60 per round
+  const MIN_VIEW_BUCKETS = 8;               // most-zoomed-in view (~2min across)
+
+  const canvas = document.getElementById('btcv-canvas');
+  const ctx = canvas.getContext('2d');
+  const priceEl = document.getElementById('btcv-price');
+  const chgEl = document.getElementById('btcv-chg');
+  const dotEl = document.getElementById('btcv-dot');
+  const statusEl = document.getElementById('btcv-status');
+  const tradecountEl = document.getElementById('btcv-tradecount');
+  const pocEl = document.getElementById('btcv-poc');
+  const callLabelEl = document.getElementById('btcv-call-label');
+  const callSubEl = document.getElementById('btcv-call-sub');
+  const confFillEl = document.getElementById('btcv-conf-fill');
+  const reasonsEl = document.getElementById('btcv-reasons');
+  const heroBlockEl = document.getElementById('btcv-hero-block');
+  const alertBtn = document.getElementById('btcv-alert-btn');
+  const soundBtn = document.getElementById('btcv-sound-btn');
+  const winratePctEl = document.getElementById('btcv-winrate-pct');
+  const winrateSubEl = document.getElementById('btcv-winrate-sub');
+  const historyChipsEl = document.getElementById('btcv-history-chips');
+  const liveBadgeEl = document.getElementById('btcv-live-badge');
+  const zoomInBtn = document.getElementById('btcv-zoom-in');
+  const zoomOutBtn = document.getElementById('btcv-zoom-out');
+
+  let trades = [];          // {price, size, side, time}
+  let windowStart = currentWindowStart();
+  let lastPrice = null;
+  let openPrice = null;
+  let ws = null;
+  let reconnectDelay = 1500;
+
+  // ---- single-call-per-round signal state ----
+  // phase: 'reading' (before entry floor) -> 'scanning' (floor passed, no lock yet)
+  //        -> 'locked' (frozen for rest of round) -or-> 'skip' (ran out of time, never locked)
+  const ENTRY_FLOOR_MS = 45 * 1000;        // bare minimum: just enough trades to not be pure noise
+  const LOCK_MS        = 45 * 1000;        // raw lean has to hold 45s straight before it can freeze
+  const LATE_STOP_MS   = 90 * 1000;        // inside last 90s: no new lock allowed, skip if nothing locked yet
+  const GO_MIN_SCORE   = 3;                // 3/4+ agreement held for LOCK_MS is enough to freeze, any time in the round
+  const EXIT_FLIP_MS   = 30 * 1000;        // after lock, opposite lean has to hold 30s before flagging an exit
+  const EXIT_MIN_SCORE = 2;                // opposite lean needs 2/4+ agreement to count as a real flip
+  const EXIT_MIN_PROFIT = 6;               // only flag exit if you're at least this far ($) in profit vs lock price
+
+  let lastRawSign = 0;
+  let sideLockStart = null;
+  let phase = 'reading';           // 'reading' | 'scanning' | 'locked' | 'skip'
+  let committedSide = null;        // 'UP' | 'DOWN' | null — frozen once phase === 'locked'
+  let lockedConf = 0;
+  let lockedPrice = null;
+  let lockedAt = null;
+  let entryMarker = null;          // {time, price, side} — single marker, drawn once
+  let notifiedLock = false;
+  let notifiedSkip = false;
+
+  // ---- post-lock flip watch: only fires if you're in profit AND the reversal
+  // holds long enough to be real, not a single noisy tick ----
+  let oppLockStart = null;         // when the opposite lean started holding, post-lock
+  let exitWarnActive = false;      // true while the current flip episode has already warned
+  let exitEvents = [];             // {time, price, diff} — chart markers, one per flip episode
+
+  function resetSignalState(){
+    lastRawSign = 0;
+    sideLockStart = null;
+    phase = 'reading';
+    committedSide = null;
+    lockedConf = 0;
+    lockedPrice = null;
+    lockedAt = null;
+    entryMarker = null;
+    notifiedLock = false;
+    notifiedSkip = false;
+    oppLockStart = null;
+    exitWarnActive = false;
+    exitEvents = [];
+  }
+
+  // ---- win rate tracking: each round's frozen call scored vs open/close ----
+  const HISTORY_KEY = 'btcv_round_history_v2';
+  let roundHistory = loadHistory();
+
+  function loadHistory(){
+    try{
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+  }
+  function saveHistory(){
+    try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(roundHistory.slice(0,200))); }catch(e){}
+  }
+
+  function finalizeRound(){
+    if (openPrice === null || lastPrice === null) return;
+    if (openPrice === lastPrice) return; // flat close, ambiguous — don't score
+    const result = lastPrice > openPrice ? 'UP' : 'DOWN';
+    const call = committedSide;
+    const correct = call ? (call === result) : null;
+    roundHistory.unshift({t: Date.now(), open: openPrice, close: lastPrice, result, call, correct});
+    if (roundHistory.length > 200) roundHistory.length = 200;
+    saveHistory();
+    updateWinRateUI();
+    renderHistoryChips();
+    if (call){
+      fireAlert(
+        correct ? 'BTC 15m — WIN ✓' : 'BTC 15m — LOSS ✕',
+        call + ' call · closed ' + result + ' · $' + fmt(lastPrice,0),
+        correct ? 'win' : 'loss'
+      );
+    }
+  }
+
+  function updateWinRateUI(){
+    const scored = roundHistory.filter(r => r.correct !== null);
+    const wins = scored.filter(r => r.correct).length;
+    const losses = scored.length - wins;
+    const noCall = roundHistory.length - scored.length;
+    const pct = scored.length ? Math.round(wins/scored.length*100) : null;
+    winratePctEl.textContent = pct === null ? '—' : pct + '%';
+    winrateSubEl.textContent = scored.length
+      ? (wins + 'W · ' + losses + 'L · ' + noCall + ' skipped')
+      : 'no scored rounds yet';
+  }
+
+  function renderHistoryChips(){
+    const recent = roundHistory.slice(0, 24).reverse();
+    if (!recent.length){
+      historyChipsEl.innerHTML = '<span class="btcv-empty-note">rounds appear here as each 15m window closes</span>';
+      return;
+    }
+    historyChipsEl.innerHTML = recent.map(r => {
+      let cls = 'nc', label = '–';
+      if (r.correct === true){ cls = 'win'; label = 'W'; }
+      else if (r.correct === false){ cls = 'loss'; label = 'L'; }
+      const title = r.result + ' · call ' + (r.call || 'skipped') + ' · $' + fmt(r.close,0);
+      return '<span class="btcv-chip ' + cls + '" title="' + title + '">' + label + '</span>';
+    }).join('');
+  }
+
+  // ---- alerts: browser Notification (opt-in) + a short tone ----
+  let alertsEnabled = false;
+  let soundEnabled = true;
+
+  function beep(tone){
+    const freqMap = { entryUp: 880, entryDown: 440, skip: 620, win: 990, loss: 300 };
+    const freq = freqMap[tone] || 700;
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const actx = new Ctx();
+      const osc = actx.createOscillator();
+      const gain = actx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, actx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, actx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.3);
+      osc.connect(gain); gain.connect(actx.destination);
+      osc.start();
+      osc.stop(actx.currentTime + 0.32);
+      osc.onended = () => { try{ actx.close(); }catch(e){} };
+    }catch(e){}
+  }
+
+  function fireAlert(title, body, tone){
+    if (soundEnabled) beep(tone);
+    if (alertsEnabled){
+      try{ new Notification(title, {body, silent:true}); }catch(e){}
+    }
+  }
+
+  function updateAlertBtn(){
+    if (!('Notification' in window)){
+      alertBtn.textContent = '🔕 Unsupported';
+      alertBtn.disabled = true;
+      return;
+    }
+    const perm = Notification.permission;
+    if (perm === 'denied'){
+      alertsEnabled = false;
+      alertBtn.textContent = '🔕 Blocked';
+      alertBtn.disabled = true;
+      alertBtn.classList.remove('active');
+    } else if (perm === 'granted'){
+      alertBtn.disabled = false;
+      alertBtn.textContent = alertsEnabled ? '🔔 Alerts On' : '🔔 Alerts Off';
+      alertBtn.classList.toggle('active', alertsEnabled);
+    } else {
+      alertBtn.disabled = false;
+      alertBtn.textContent = '🔔 Enable Alerts';
+      alertBtn.classList.remove('active');
+    }
+  }
+
+  alertBtn.addEventListener('click', () => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default'){
+      Notification.requestPermission().then(perm => {
+        alertsEnabled = perm === 'granted';
+        updateAlertBtn();
+      });
+    } else if (Notification.permission === 'granted'){
+      alertsEnabled = !alertsEnabled;
+      updateAlertBtn();
+    }
+  });
+  soundBtn.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    soundBtn.textContent = soundEnabled ? '🔊 Sound' : '🔇 Muted';
+    soundBtn.classList.toggle('active', soundEnabled);
+  });
+  if ('Notification' in window && Notification.permission === 'granted') alertsEnabled = true;
+  updateAlertBtn();
+
+  function currentWindowStart(){
+    const now = new Date();
+    const ms = WINDOW_MIN * 60 * 1000;
+    return new Date(Math.floor(now.getTime() / ms) * ms);
+  }
+
+  function resetWindowIfNeeded(){
+    const ws0 = currentWindowStart();
+    if (ws0.getTime() !== windowStart.getTime()){
+      finalizeRound();
+      windowStart = ws0;
+      trades = [];
+      openPrice = lastPrice;
+      resetSignalState();
+      viewCount = TOTAL_BUCKETS;
+      viewStart = 0;
+      autoFollow = true;
+      forceKalshiRefresh(); // don't wait up to 15s to pick up the new round's real strike
+    }
+  }
+
+  // ---------------- Kalshi's real market: actual price-to-beat + live crowd price ----------------
+  // Kalshi's own public market-data endpoints need no auth. Their 15-minute BTC
+  // markets settle on floor_strike (the real price to beat, fixed at window open)
+  // vs the actual price at close — so this is the REAL number; our own openPrice
+  // above is only a Coinbase-tape approximation of it. yes_bid/yes_ask is also a
+  // genuinely independent, crowd-informed read, separate from our own signal.
+  let kalshiMarket = null; // {ticker, floorStrike, yesProb, closeMs}
+  let kalshiSeriesTicker = 'KXBTC15M'; // falls back to KXBTCD if this series returns nothing
+  let kalshiConsecutiveFailures = 0;
+  let kalshiPollTimer = null;
+  let kalshiConnectionVia = null; // 'local-proxy' | 'direct' | 'alternate' | 'proxy' | null
+  const KALSHI_BASE_POLL_MS = 15000;
+  const KALSHI_MAX_POLL_MS = 30000;
+  const CLOCK_DRIFT_TOLERANCE_MS = 3000;
+
+  // Tried in order. A local proxy (if you run one) goes first since CORS never
+  // applies server-to-server; if nothing's listening there it fails almost
+  // instantly and falls through. The public CORS proxy is the last resort — a
+  // real tradeoff (third-party server in the path) but only for public market
+  // data, no keys or account info ever touch it.
+  const KALSHI_BASES = [
+    {url: '/api/kalshi', via: 'vercel-proxy'},
+    {url: 'http://localhost:8001/kalshi', via: 'local-proxy'},
+    {url: 'https://external-api.kalshi.com/trade-api/v2/markets', via: 'direct'},
+    {url: 'https://api.elections.kalshi.com/trade-api/v2/markets', via: 'alternate'},
+    {url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://external-api.kalshi.com/trade-api/v2/markets'), via: 'proxy'},
+  ];
+
+  async function fetchKalshiMarket(){
+    const tickersToTry = [kalshiSeriesTicker, 'KXBTCD', 'KXBTC15M'];
+    for (const {url: base, via} of KALSHI_BASES){
+      for (const st of tickersToTry){
+        try{
+          const sep = base.includes('?') ? '&' : '?';
+          const res = await fetch(base + sep + 'series_ticker=' + st + '&status=open&limit=10');
+          if (!res.ok) throw new Error('kalshi http ' + res.status);
+          const data = await res.json();
+          const markets = data && data.markets;
+          if (!Array.isArray(markets) || !markets.length) continue;
+          // whichever open market closes soonest is the currently active round
+          const withClose = markets.map(m => ({
+            m, closeMs: Date.parse(m.close_time || m.expiration_time || m.latest_expiration_time || '')
+          })).filter(x => !isNaN(x.closeMs));
+          if (!withClose.length) continue;
+          withClose.sort((a,b) => a.closeMs - b.closeMs);
+          const m = withClose[0].m;
+
+          const floorStrike = m.floor_strike ?? m.floor_strike_dollars ?? null;
+          let yesBid = m.yes_bid_dollars != null ? parseFloat(m.yes_bid_dollars) : (m.yes_bid != null ? m.yes_bid/100 : null);
+          let yesAsk = m.yes_ask_dollars != null ? parseFloat(m.yes_ask_dollars) : (m.yes_ask != null ? m.yes_ask/100 : null);
+          if (floorStrike == null || (yesBid == null && yesAsk == null)) continue;
+          const yesProb = (yesBid != null && yesAsk != null) ? (yesBid+yesAsk)/2 : (yesBid ?? yesAsk);
+
+          kalshiSeriesTicker = st;
+          kalshiConnectionVia = via;
+          kalshiMarket = {
+            ticker: m.ticker,
+            floorStrike: parseFloat(floorStrike),
+            yesProb: yesProb,
+            yesBid: yesBid, yesAsk: yesAsk,
+            closeMs: withClose[0].closeMs
+          };
+          kalshiConsecutiveFailures = 0;
+          resyncWindowToKalshi();
+          renderKalshiPanel();
+          return true;
+        } catch(e){ /* try next base/ticker */ }
+      }
+    }
+    kalshiMarket = null;
+    kalshiConnectionVia = null;
+    kalshiConsecutiveFailures++;
+    renderKalshiPanel();
+    return false;
+  }
+
+  function scheduleKalshiPoll(){
+    if (kalshiPollTimer) clearTimeout(kalshiPollTimer);
+    const wait = kalshiConsecutiveFailures === 0
+      ? KALSHI_BASE_POLL_MS
+      : Math.min(KALSHI_MAX_POLL_MS, KALSHI_BASE_POLL_MS * Math.pow(2, kalshiConsecutiveFailures));
+    kalshiPollTimer = setTimeout(async () => {
+      await fetchKalshiMarket();
+      scheduleKalshiPoll();
+    }, wait);
+  }
+  function forceKalshiRefresh(){
+    if (kalshiPollTimer) clearTimeout(kalshiPollTimer);
+    fetchKalshiMarket().then(scheduleKalshiPoll);
+  }
+
+  // Our own windowStart is self-tracked from the local clock; Kalshi's real
+  // close_time won't always land on the exact same instant (clock skew, fetch
+  // latency, a round that didn't land on an epoch-aligned :00/:15/:30/:45). A
+  // small drift gets corrected so the entry-floor/late-stop timers line up
+  // with the actual contract; a large drift (looks like a different round
+  // entirely) is left alone rather than silently reassigning the round.
+  function resyncWindowToKalshi(){
+    if (!kalshiMarket || kalshiMarket.closeMs == null) return;
+    const expectedStart = kalshiMarket.closeMs - WINDOW_MIN*60*1000;
+    const drift = windowStart.getTime() - expectedStart;
+    if (Math.abs(drift) <= CLOCK_DRIFT_TOLERANCE_MS) return;
+    if (Math.abs(drift) >= WINDOW_MIN*60*1000) return;
+    windowStart = new Date(expectedStart);
+  }
+
+  const kalshiDotEl = document.getElementById('btcv-kalshi-dot');
+  const kalshiBodyEl = document.getElementById('btcv-kalshi-body');
+  function renderKalshiPanel(){
+    if (!kalshiBodyEl) return;
+    if (!kalshiMarket){
+      kalshiDotEl.className = 'btcv-kalshi-dot off';
+      kalshiBodyEl.innerHTML = '<div class="btcv-kv-row"><span>status</span><b>unavailable — using local proxy</b></div>' +
+        '<div class="btcv-kalshi-via">Falling back to this round\'s Coinbase-tape open ($' + (openPrice!=null?fmt(openPrice,0):'—') + ') as the anchor.</div>';
+      return;
+    }
+    kalshiDotEl.className = 'btcv-kalshi-dot live';
+    const gapToOurs = openPrice != null ? kalshiMarket.floorStrike - openPrice : null;
+    const yesPct = Math.round(kalshiMarket.yesProb * 100);
+    const spread = (kalshiMarket.yesBid != null && kalshiMarket.yesAsk != null) ? (kalshiMarket.yesAsk - kalshiMarket.yesBid) : null;
+    const viaLabels = {
+      'local-proxy': '✓ via your local proxy',
+      direct: '',
+      alternate: 'via alternate Kalshi domain',
+      'vercel-proxy': 'via your own server proxy',
+      proxy: '⚠ via third-party CORS proxy — not a direct connection to Kalshi',
+    };
+    kalshiBodyEl.innerHTML =
+      '<div class="btcv-kv-row"><span>price to beat</span><b>$' + kalshiMarket.floorStrike.toLocaleString(undefined,{maximumFractionDigits:0}) + '</b></div>' +
+      (gapToOurs != null ? '<div class="btcv-kv-row"><span>vs our anchor</span><b style="color:' + (gapToOurs>=0?'var(--up)':'var(--down)') + '">' + (gapToOurs>=0?'+':'') + fmt(gapToOurs) + '</b></div>' : '') +
+      '<div class="btcv-kv-row"><span>crowd (YES)</span><b style="color:' + (yesPct>=50?'var(--up)':'var(--down)') + '">' + yesPct + '%</b></div>' +
+      (spread != null ? '<div class="btcv-kv-row"><span>spread</span><b>' + Math.round(spread*100) + '¢</b></div>' : '') +
+      '<div class="btcv-kalshi-ticker">' + kalshiMarket.ticker + '</div>' +
+      (viaLabels[kalshiConnectionVia] ? '<div class="btcv-kalshi-via">' + viaLabels[kalshiConnectionVia] + '</div>' : '');
+  }
+  forceKalshiRefresh();
+
+  function connect(){
+    statusEl.textContent = 'connecting…';
+    dotEl.className = 'btcv-dot off';
+    try{
+      ws = new WebSocket('wss://ws-feed.exchange.coinbase.com');
+    }catch(e){
+      statusEl.textContent = 'feed blocked';
+      return;
+    }
+    ws.onopen = () => {
+      ws.send(JSON.stringify({type:'subscribe', product_ids:[PRODUCT], channels:['matches']}));
+      statusEl.textContent = 'live';
+      dotEl.className = 'btcv-dot live';
+      reconnectDelay = 1500;
+    };
+    ws.onmessage = (ev) => {
+      let msg;
+      try{ msg = JSON.parse(ev.data); }catch(e){ return; }
+      if (msg.type !== 'match' && msg.type !== 'last_match') return;
+      const price = parseFloat(msg.price);
+      const size = parseFloat(msg.size);
+      const time = new Date(msg.time).getTime();
+      const side = msg.side === 'sell' ? 'sell' : 'buy';
+      if (!isFinite(price) || !isFinite(size)) return;
+
+      resetWindowIfNeeded();
+      if (time >= windowStart.getTime()){
+        trades.push({price, size, side, time});
+        if (openPrice === null) openPrice = price;
+      }
+      lastPrice = price;
+    };
+    ws.onclose = () => {
+      statusEl.textContent = 're-connecting…';
+      dotEl.className = 'btcv-dot off';
+      setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 15000);
+    };
+    ws.onerror = () => {
+      try{ ws.close(); }catch(e){}
+    };
+  }
+
+  function seed(){
+    fetch('https://api.exchange.coinbase.com/products/' + PRODUCT + '/trades?limit=250')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(rows => {
+        resetWindowIfNeeded();
+        rows.reverse().forEach(t => {
+          const price = parseFloat(t.price);
+          const size = parseFloat(t.size);
+          const time = new Date(t.time).getTime();
+          const side = t.side === 'sell' ? 'sell' : 'buy';
+          if (!isFinite(price) || !isFinite(size)) return;
+          if (time >= windowStart.getTime()){
+            trades.push({price, size, side, time});
+            if (openPrice === null) openPrice = price;
+            lastPrice = price;
+          }
+        });
+      })
+      .catch(() => {});
+  }
+
+  function fmt(n, d=2){
+    return n.toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+
+  function resizeCanvas(){
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  // ---- in-chart zoom/pan state (replaces relying on the browser/page zoom) ----
+  let viewCount = TOTAL_BUCKETS;   // how many 15s buckets are visible
+  let viewStart = 0;               // index of first visible bucket
+  let autoFollow = true;           // true = view tracks the live edge as time passes
+  let lastPlotSpan = { left:0, right:0 }; // updated each draw(), used for pan math
+
+  function clampView(){
+    viewCount = Math.max(MIN_VIEW_BUCKETS, Math.min(TOTAL_BUCKETS, Math.round(viewCount)));
+    viewStart = Math.max(0, Math.min(TOTAL_BUCKETS - viewCount, Math.round(viewStart)));
+  }
+  function updateLiveBadge(on){
+    liveBadgeEl.textContent = on ? 'LIVE' : 'PANNED';
+    liveBadgeEl.classList.toggle('on', on);
+    liveBadgeEl.classList.toggle('off', !on);
+  }
+  function setLive(on){
+    autoFollow = on;
+    if (on){ viewCount = TOTAL_BUCKETS; viewStart = 0; }
+    updateLiveBadge(on);
+  }
+  liveBadgeEl.addEventListener('click', () => setLive(true));
+  zoomInBtn.addEventListener('click', () => {
+    // was calling setLive(autoFollow) here, which forces viewCount back to
+    // TOTAL_BUCKETS whenever autoFollow is true — that undid the zoom on the
+    // same click, so zooming in while LIVE never actually stuck.
+    viewCount = viewCount * 0.65;
+    clampView();
+    if (autoFollow) viewStart = TOTAL_BUCKETS - viewCount;
+    updateLiveBadge(autoFollow); // keep the badge in sync without resetting the zoom
+  });
+  zoomOutBtn.addEventListener('click', () => {
+    viewCount = viewCount / 0.65;
+    clampView();
+    if (viewCount >= TOTAL_BUCKETS) setLive(true);
+    else if (autoFollow) viewStart = TOTAL_BUCKETS - viewCount;
+  });
+
+  // touch: pinch to zoom, one-finger drag to pan, double-tap to reset to live
+  let touchState = null;
+  let lastTapTime = 0;
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2){
+      const [a,b] = e.touches;
+      const dist = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+      touchState = {mode:'pinch', startDist:dist, startViewCount:viewCount, startViewStart:viewStart};
+      e.preventDefault();
+    } else if (e.touches.length === 1){
+      const now = Date.now();
+      if (now - lastTapTime < 300){
+        setLive(true);
+        touchState = null;
+      } else {
+        touchState = {mode:'maybe', startX:e.touches[0].clientX, startY:e.touches[0].clientY, startViewStart:viewStart, determined:false};
+      }
+      lastTapTime = now;
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (!touchState) return;
+    if (touchState.mode === 'pinch' && e.touches.length === 2){
+      const [a,b] = e.touches;
+      const dist = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+      const ratio = touchState.startDist / Math.max(1,dist);
+      const center = touchState.startViewStart + touchState.startViewCount/2;
+      viewCount = touchState.startViewCount * ratio;
+      viewStart = center - viewCount/2;
+      clampView();
+      autoFollow = (viewStart + viewCount >= TOTAL_BUCKETS - 1);
+      liveBadgeEl.textContent = autoFollow ? 'LIVE' : 'PANNED';
+      liveBadgeEl.classList.toggle('on', autoFollow);
+      liveBadgeEl.classList.toggle('off', !autoFollow);
+      e.preventDefault();
+    } else if (touchState.mode === 'maybe' || touchState.mode === 'pan'){
+      const dx = e.touches[0].clientX - touchState.startX;
+      const dy = e.touches[0].clientY - touchState.startY;
+      if (!touchState.determined){
+        if (viewCount >= TOTAL_BUCKETS){ return; } // nothing to pan when fully zoomed out
+        if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)){
+          touchState.mode = 'pan'; touchState.determined = true;
+        } else if (Math.abs(dy) > 8){
+          touchState = null; return; // let the page scroll instead
+        } else return;
+      }
+      if (touchState.mode === 'pan'){
+        const span = Math.max(1, lastPlotSpan.right - lastPlotSpan.left);
+        const bucketPx = span / viewCount;
+        const deltaBuckets = -dx / bucketPx;
+        viewStart = touchState.startViewStart + deltaBuckets;
+        clampView();
+        autoFollow = (viewStart + viewCount >= TOTAL_BUCKETS - 1);
+        liveBadgeEl.textContent = autoFollow ? 'LIVE' : 'PANNED';
+        liveBadgeEl.classList.toggle('on', autoFollow);
+        liveBadgeEl.classList.toggle('off', !autoFollow);
+        e.preventDefault();
+      }
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length === 0) touchState = null;
+  });
+
+  function draw(){
+    resetWindowIfNeeded();
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    if (w === 0 || h === 0){ requestAnimationFrame(draw); return; }
+
+    const padTop = 20, padBottom = 24, padLeft = 16, priceAxisW = 78;
+    const plotTop = padTop, plotBottom = h - padBottom;
+    const plotH = plotBottom - plotTop;
+
+    if (lastPrice !== null){
+      priceEl.textContent = '$' + fmt(lastPrice);
+      if (openPrice !== null){
+        const chg = lastPrice - openPrice;
+        const pct = openPrice ? (chg/openPrice*100) : 0;
+        chgEl.textContent = (chg>=0?'+':'') + fmt(chg) + '  (' + (pct>=0?'+':'') + fmt(pct) + '%)';
+        chgEl.className = 'btcv-chg ' + (chg>=0?'up':'down');
+      }
+    }
+    tradecountEl.textContent = trades.length;
+
+    const t0 = windowStart.getTime(), t1 = t0 + WINDOW_MIN*60000;
+    const elapsedMs = Date.now() - t0;
+    const remainMs = Math.max(0, t1 - Date.now());
+
+    if (trades.length < 2){
+      ctx.fillStyle = '#6b7686';
+      ctx.font = '13px ui-monospace, monospace';
+      ctx.fillText('waiting for trade data…', padLeft, plotTop + 20);
+      requestAnimationFrame(draw);
+      return;
+    }
+
+    clampView();
+    if (autoFollow) viewStart = TOTAL_BUCKETS - viewCount;
+    const viewT0 = t0 + viewStart*BUCKET_SEC*1000;
+    const viewT1 = t0 + (viewStart+viewCount)*BUCKET_SEC*1000;
+
+    // price range: fit to what's actually visible so zooming shows real detail
+    let lo = Infinity, hi = -Infinity;
+    for (const t of trades){ if (t.time >= viewT0 && t.time <= viewT1){ if (t.price<lo) lo=t.price; if (t.price>hi) hi=t.price; } }
+    if (!isFinite(lo)){
+      for (const t of trades){ if (t.price<lo) lo=t.price; if (t.price>hi) hi=t.price; }
+    }
+    if (lastPrice !== null && Date.now() >= viewT0 && Date.now() <= viewT1 + BUCKET_SEC*1000){
+      lo = Math.min(lo,lastPrice); hi = Math.max(hi,lastPrice);
+    }
+    const padPrice = (hi - lo) * 0.10 || 1;
+    lo -= padPrice; hi += padPrice;
+
+    const priceToY = p => plotTop + (1 - (p - lo)/(hi - lo)) * plotH;
+
+    // ---- volume profile bins (computed early so order-block zones can render behind candles) ----
+    const binH = (hi - lo) / ROWS;
+    const upVols = new Array(ROWS).fill(0);
+    const dnVols = new Array(ROWS).fill(0);
+    for (const t of trades){
+      let bin = Math.floor((t.price - lo) / binH);
+      if (bin < 0) bin = 0; if (bin >= ROWS) bin = ROWS - 1;
+      if (t.side === 'buy') upVols[bin] += t.size; else dnVols[bin] += t.size;
+    }
+    let maxBin = 0, pocBin = 0;
+    for (let i=0;i<ROWS;i++){
+      const tot = upVols[i] + dnVols[i];
+      if (tot > maxBin){ maxBin = tot; pocBin = i; }
+    }
+    const pocPrice = lo + (pocBin + 0.5) * binH;
+
+    // ---- order-block zones (approximate): heaviest volume-concentration bins ----
+    // besides POC. This feed only gives completed trades (Coinbase "matches"), not
+    // real order-book depth, so these aren't true institutional order blocks — they're
+    // a proxy: price levels where the most volume has already changed hands this round,
+    // which tend to act as support/resistance the same way an order block would.
+    const obBins = upVols
+      .map((v,i) => ({i, tot: v + dnVols[i]}))
+      .filter(b => b.tot > 0 && b.i !== pocBin)
+      .sort((a,b) => b.tot - a.tot)
+      .slice(0, 2)
+      .map(b => b.i);
+
+    const axisX = w - priceAxisW;
+    ctx.strokeStyle = '#1c2530';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(axisX, plotTop); ctx.lineTo(axisX, plotBottom); ctx.stroke();
+    ctx.fillStyle = '#6b7686';
+    ctx.font = '10px ui-monospace, monospace';
+    const gridLines = 6;
+    for (let i=0;i<=gridLines;i++){
+      const p = lo + (hi-lo)*i/gridLines;
+      const y = priceToY(p);
+      ctx.strokeStyle = 'rgba(28,37,48,0.5)';
+      ctx.beginPath(); ctx.moveTo(padLeft, y); ctx.lineTo(axisX, y); ctx.stroke();
+      ctx.fillText(fmt(p,0), axisX + 6, y + 3);
+    }
+
+    const tapeLeft = padLeft, tapeRight = axisX - 190;
+    lastPlotSpan.left = tapeLeft; lastPlotSpan.right = tapeRight;
+    const bucketW = (tapeRight - tapeLeft) / viewCount;
+    const candles = new Array(TOTAL_BUCKETS);
+
+    for (const t of trades){
+      let bi = Math.floor((t.time - t0) / (BUCKET_SEC*1000));
+      if (bi < 0) bi = 0; if (bi >= TOTAL_BUCKETS) bi = TOTAL_BUCKETS - 1;
+      let c = candles[bi];
+      if (!c){ c = {o:t.price, h:t.price, l:t.price, c:t.price}; candles[bi] = c; }
+      else{
+        c.h = Math.max(c.h, t.price);
+        c.l = Math.min(c.l, t.price);
+        c.c = t.price;
+      }
+    }
+    let carry = null;
+    for (let i=0;i<TOTAL_BUCKETS;i++){
+      if (!candles[i] && carry !== null){
+        candles[i] = {o:carry, h:carry, l:carry, c:carry, flat:true};
+      } else if (candles[i]){
+        carry = candles[i].c;
+      }
+    }
+
+    const bodyW = Math.max(1.5, bucketW * 0.62);
+
+    // ---- draw order-block zones behind the candles ----
+    for (const bi of obBins){
+      const yTop = priceToY(lo + (bi+1)*binH);
+      const yBot = priceToY(lo + bi*binH);
+      ctx.fillStyle = 'rgba(74,144,224,0.10)';
+      ctx.fillRect(tapeLeft, yTop, tapeRight - tapeLeft, Math.max(1, yBot - yTop));
+      ctx.setLineDash([2,3]);
+      ctx.strokeStyle = 'rgba(74,144,224,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(tapeLeft, yTop); ctx.lineTo(tapeRight, yTop); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tapeLeft, yBot); ctx.lineTo(tapeRight, yBot); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    for (let i=viewStart; i<viewStart+viewCount; i++){
+      const c = candles[i];
+      if (!c) continue;
+      const xCenter = tapeLeft + (i-viewStart)*bucketW + bucketW/2;
+      const up = c.c >= c.o;
+      const col = c.flat ? 'rgba(107,118,134,0.5)' : (up ? '#26a690' : '#e0455f');
+      const yO = priceToY(c.o), yC = priceToY(c.c), yH = priceToY(c.h), yL = priceToY(c.l);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xCenter, yH); ctx.lineTo(xCenter, yL); ctx.stroke();
+      ctx.fillStyle = col;
+      const bodyTop = Math.min(yO, yC), bodyH = Math.max(1.2, Math.abs(yC - yO));
+      ctx.fillRect(xCenter - bodyW/2, bodyTop, bodyW, bodyH);
+    }
+
+    const timeToX = tm => tapeLeft + ((tm - viewT0)/(viewT1 - viewT0)) * (tapeRight - tapeLeft);
+
+    // single locked-entry marker (only drawn while it falls inside the current view)
+    if (entryMarker && entryMarker.time >= viewT0 && entryMarker.time <= viewT1){
+      const mx = timeToX(entryMarker.time), my = priceToY(entryMarker.price);
+      const up = entryMarker.side === 'UP';
+      const col = up ? '#26a690' : '#e0455f';
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      if (up){ ctx.moveTo(mx, my+9); ctx.lineTo(mx-6, my+19); ctx.lineTo(mx+6, my+19); }
+      else   { ctx.moveTo(mx, my-9); ctx.lineTo(mx-6, my-19); ctx.lineTo(mx+6, my-19); }
+      ctx.closePath(); ctx.fill();
+      ctx.font = '9px ui-monospace, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('🔒 LOCKED ' + entryMarker.side + ' $' + fmt(entryMarker.price,0), mx + 8, up ? my+24 : my-14);
+    }
+
+    // flip-warning markers (post-lock, only when it fired an in-profit exit flag)
+    for (const ev of exitEvents){
+      if (ev.time < viewT0 || ev.time > viewT1) continue;
+      const mx = timeToX(ev.time), my = priceToY(ev.price);
+      ctx.strokeStyle = '#f0c94a'; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(mx-6, my-6); ctx.lineTo(mx+6, my+6);
+      ctx.moveTo(mx+6, my-6); ctx.lineTo(mx-6, my+6);
+      ctx.stroke();
+      ctx.fillStyle = '#f0c94a';
+      ctx.font = '9px ui-monospace, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚠ flip · +$' + fmt(ev.diff,0), mx + 8, my + 3);
+    }
+
+    // large ("block") trades — sized well above the round's typical trade,
+    // drawn as small dots on the tape as a rough footprint of bigger orders
+    {
+      let sizeSum = 0, sizeCnt = 0;
+      for (const t of trades){ sizeSum += t.size; sizeCnt++; }
+      const avgSize = sizeCnt ? sizeSum / sizeCnt : 0;
+      if (avgSize > 0){
+        for (const t of trades){
+          if (t.time < viewT0 || t.time > viewT1) continue;
+          if (t.size < avgSize * 4) continue;
+          const mx = timeToX(t.time), my = priceToY(t.price);
+          ctx.beginPath();
+          ctx.arc(mx, my, 3, 0, Math.PI*2);
+          ctx.fillStyle = t.side === 'buy' ? 'rgba(38,166,144,0.9)' : 'rgba(224,69,95,0.9)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(232,237,244,0.6)'; ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+    }
+
+    if (lastPrice !== null && Date.now() >= viewT0 && Date.now() <= viewT1){
+      const hx = timeToX(Date.now()), hy = priceToY(lastPrice);
+      ctx.beginPath();
+      ctx.arc(hx, hy, 4, 0, Math.PI*2);
+      ctx.fillStyle = '#4a90e0';
+      ctx.fill();
+      ctx.strokeStyle = '#0a0d12'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#4a90e0';
+      ctx.font = '10px ui-monospace, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('now $' + fmt(lastPrice,0), hx + 8, hy - 8);
+    }
+
+    if (t1 >= viewT0 && t1 <= viewT1){
+      const ex = timeToX(t1);
+      ctx.setLineDash([2,4]);
+      ctx.strokeStyle = 'rgba(240,201,74,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(ex, plotTop); ctx.lineTo(ex, plotBottom); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#f0c94a';
+      ctx.font = '9px ui-monospace, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText('close', ex - 4, plotTop + 10);
+      ctx.textAlign = 'left';
+    }
+
+    if (lastPrice !== null){
+      const y = priceToY(lastPrice);
+      ctx.setLineDash([4,4]);
+      ctx.strokeStyle = 'rgba(232,237,244,0.35)';
+      ctx.beginPath(); ctx.moveTo(padLeft, y); ctx.lineTo(w, y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // ---- volume profile bars on the right (always full-round, unaffected by chart zoom) ----
+
+    // ---- spike/exhaustion guard: don't let a single outsized recent move ----
+    // alone trigger a lock — that's usually the tail end of a spike, not the
+    // start of a sustained move, and it tends to snap back right after locking
+    let avgBucketRange = 0;
+    {
+      let sum = 0, cnt = 0;
+      const curBucket = Math.floor((Date.now() - t0) / (BUCKET_SEC*1000));
+      for (let i = Math.max(0, curBucket-8); i < curBucket; i++){
+        const c = candles[i];
+        if (c && !c.flat){ sum += (c.h - c.l); cnt++; }
+      }
+      avgBucketRange = cnt ? sum/cnt : 0;
+    }
+    const spikeCutoff = Date.now() - 60000;
+    let spikeHi = -Infinity, spikeLo = Infinity;
+    for (const t of trades){ if (t.time >= spikeCutoff){ if (t.price>spikeHi) spikeHi=t.price; if (t.price<spikeLo) spikeLo=t.price; } }
+    const recentRange = (spikeHi > spikeLo) ? (spikeHi - spikeLo) : 0;
+    const isSpiking = avgBucketRange > 0 && recentRange > avgBucketRange * 3;
+
+    // ---- signal: 4-factor lean, gated to ONE freeze per round ----
+    {
+      let upVotes = 0, downVotes = 0; // literal count of factors pointing each way — used for the "N of 4 agree" gate, separate from the net sum below
+      const reasons = [];
+
+      // use Kalshi's real floor_strike as the anchor when we have it — that's
+      // the actual number the round settles against, not our Coinbase proxy
+      const ptbAnchor = (kalshiMarket && kalshiMarket.floorStrike != null) ? kalshiMarket.floorStrike : openPrice;
+      if (ptbAnchor !== null && lastPrice !== null){
+        const vsOpen = lastPrice - ptbAnchor;
+        const s = vsOpen > 0 ? 1 : vsOpen < 0 ? -1 : 0;
+        if (s>0) upVotes++; else if (s<0) downVotes++;
+        reasons.push((kalshiMarket ? 'vs strike ' : 'vs open ') + '<b>' + (vsOpen>=0?'+':'') + fmt(vsOpen) + '</b>');
+      }
+      if (maxBin > 0 && lastPrice !== null){
+        const vsPoc = lastPrice - pocPrice;
+        const s = vsPoc > 0 ? 1 : vsPoc < 0 ? -1 : 0;
+        if (s>0) upVotes++; else if (s<0) downVotes++;
+        reasons.push('vs POC <b>' + (vsPoc>=0?'+':'') + fmt(vsPoc) + '</b>');
+      }
+      const cutoff = Date.now() - 60000;
+      let recentBuy = 0, recentSell = 0;
+      for (const t of trades){ if (t.time >= cutoff){ if (t.side==='buy') recentBuy += t.size; else recentSell += t.size; } }
+      const recentTot = recentBuy + recentSell;
+      if (recentTot > 0){
+        const buyPct = recentBuy / recentTot * 100;
+        const s = buyPct > 55 ? 1 : buyPct < 45 ? -1 : 0;
+        if (s>0) upVotes++; else if (s<0) downVotes++;
+        reasons.push('60s pressure <b>' + Math.round(buyPct) + '% buy</b>');
+      }
+      const momCutoff = Date.now() - 45000;
+      let momRef = null;
+      let momSign = 0; // tracked separately so a fresh reversal can veto a stale aggregate score
+      for (const t of trades){ if (t.time >= momCutoff){ momRef = t.price; break; } }
+      if (momRef !== null && lastPrice !== null){
+        const mom = lastPrice - momRef;
+        const s = mom > 0 ? 1 : mom < 0 ? -1 : 0;
+        if (s>0) upVotes++; else if (s<0) downVotes++;
+        momSign = s;
+        reasons.push('45s momentum <b>' + (mom>=0?'+':'') + fmt(mom) + '</b>');
+      }
+
+      // "N of 4 agree" is a literal vote count, not the net sum — 3 factors down + 1 up
+      // nets to -2, but 3 of 4 still genuinely agree, so use agreeCount for the lock gate
+      const agreeCount = Math.max(upVotes, downVotes);
+      const rawSign = upVotes > downVotes ? 1 : downVotes > upVotes ? -1 : 0;
+      const momAgrees = momSign === 0 || momSign === rawSign; // don't buy into momentum that's already turning
+
+      if (phase !== 'locked' && phase !== 'skip'){
+        // A momentary tie (rawSign 0) is noise, not a real reversal — don't wipe the
+        // hold timer for it. Only a genuine flip to the OTHER non-zero direction
+        // resets the clock; ties just pause without losing progress.
+        if (rawSign !== 0 && rawSign !== lastRawSign){
+          lastRawSign = rawSign;
+          sideLockStart = Date.now();
+        } else if (rawSign !== 0 && sideLockStart === null){
+          sideLockStart = Date.now();
+        }
+        const lockedMs = sideLockStart ? Date.now() - sideLockStart : 0;
+        const requiredHoldMs = isSpiking ? LOCK_MS * 2 : LOCK_MS; // spiking doesn't block a lock outright — it just has to prove it holds twice as long, so a real trend can still lock but a quick spike-and-revert won't
+        const winnerLocked = sideLockStart !== null && lockedMs >= requiredHoldMs && agreeCount >= 3 && momAgrees;
+        const entryReady = elapsedMs >= ENTRY_FLOOR_MS;
+        const goConfirmed = !entryReady && winnerLocked && agreeCount >= GO_MIN_SCORE;
+        const lateStop = remainMs <= LATE_STOP_MS;
+
+        phase = entryReady ? 'scanning' : 'reading';
+
+        if (winnerLocked && (entryReady || goConfirmed) && rawSign !== 0){
+          // FREEZE — this is the one call for the round
+          committedSide = rawSign === 1 ? 'UP' : 'DOWN';
+          lockedConf = Math.min(90, 50 + agreeCount*10);
+          lockedPrice = lastPrice;
+          lockedAt = Date.now();
+          entryMarker = {time: lockedAt, price: lastPrice, side: committedSide};
+          phase = 'locked';
+        } else if (lateStop){
+          phase = 'skip';
+        }
+      }
+
+      const conf = phase === 'locked' ? lockedConf : Math.max(0, 30 + agreeCount * 10);
+
+      heroBlockEl.classList.remove('state-scanning','state-locked-up','state-locked-down','state-skip');
+      callLabelEl.classList.remove('tone-up','tone-down','tone-gold','tone-muted');
+      confFillEl.style.width = (phase === 'locked' ? lockedConf : conf) + '%';
+
+      const elapsedTxt = fmtDur(elapsedMs) + ' elapsed · ' + fmtDur(remainMs) + ' left';
+
+      if (phase === 'reading'){
+        heroBlockEl.classList.add('state-scanning');
+        callLabelEl.classList.add('tone-gold');
+        callLabelEl.textContent = 'READING';
+        callSubEl.innerHTML = 'building a read · entry floor opens in <b>' + Math.ceil((ENTRY_FLOOR_MS-elapsedMs)/1000) + 's</b><br>' + elapsedTxt;
+        confFillEl.style.background = 'var(--accent)';
+      } else if (phase === 'scanning'){
+        heroBlockEl.classList.add('state-scanning');
+        callLabelEl.classList.add('tone-gold');
+        callLabelEl.textContent = 'SCANNING';
+        callSubEl.innerHTML = 'watching for a locked lean · ' + Math.round(conf) + '% so far' +
+          (!momAgrees ? ' · momentum disagrees, holding off' : '') +
+          (isSpiking ? ' · price just spiked, needs longer to confirm' : '') + '<br>' + elapsedTxt;
+        confFillEl.style.background = 'var(--accent)';
+      } else if (phase === 'locked'){
+        heroBlockEl.classList.add(committedSide === 'UP' ? 'state-locked-up' : 'state-locked-down');
+        callLabelEl.classList.add(committedSide === 'UP' ? 'tone-up' : 'tone-down');
+        callLabelEl.textContent = '🔒 ' + committedSide + ' — LOCKED';
+        confFillEl.style.background = committedSide === 'UP' ? 'var(--up)' : 'var(--down)';
+        if (!notifiedLock){
+          notifiedLock = true;
+          fireAlert('BTC 15m — ' + committedSide + ' LOCKED', lockedConf + '% confidence · $' + fmt(lockedPrice,0), committedSide === 'UP' ? 'entryUp' : 'entryDown');
+        }
+
+        // ---- post-lock flip watch ----
+        const oppositeSign = committedSide === 'UP' ? -1 : 1;
+        const agreeSign = committedSide === 'UP' ? 1 : -1;
+        if (rawSign === oppositeSign && agreeCount >= EXIT_MIN_SCORE){
+          if (oppLockStart === null) oppLockStart = Date.now();
+        } else {
+          oppLockStart = null;
+          if (rawSign === agreeSign) exitWarnActive = false; // back in agreement — allow a future flip to warn again
+        }
+        const oppHeldMs = oppLockStart ? Date.now() - oppLockStart : 0;
+        const flipConfirmed = oppLockStart !== null && oppHeldMs >= EXIT_FLIP_MS;
+        const diff = committedSide === 'UP' ? (lastPrice - lockedPrice) : (lockedPrice - lastPrice);
+        const inProfit = diff >= EXIT_MIN_PROFIT;
+
+        if (flipConfirmed && !exitWarnActive && remainMs > 10000){
+          exitWarnActive = true;
+          exitEvents.push({time: Date.now(), price: lastPrice, diff});
+          if (exitEvents.length > 10) exitEvents.splice(0, exitEvents.length - 10);
+          if (inProfit){
+            fireAlert('BTC 15m — take profit?', committedSide + ' up $' + fmt(diff,0) + ' but flipping against you', 'skip');
+          } else {
+            fireAlert('BTC 15m — cutting against you', committedSide + ' down $' + fmt(Math.abs(diff),0) + ' and the tape keeps flipping', 'skip');
+          }
+        }
+
+        const diffTxt = (diff>=0?'+$':'-$') + fmt(Math.abs(diff),0) + ' vs lock';
+        if (exitWarnActive){
+          const warnText = inProfit ? 'flipping against you' : 'flipping further against you';
+          callSubEl.innerHTML = '⚠️ <b>' + warnText + '</b> · ' + diffTxt + ' — consider closing<br>' +
+            lockedConf + '% at lock · $' + fmt(lockedPrice,0) + '<br>' + elapsedTxt;
+        } else {
+          callSubEl.innerHTML = '<b>' + lockedConf + '%</b> confidence · locked at <b>$' + fmt(lockedPrice,0) + '</b> · ' + diffTxt + '<br>' + elapsedTxt;
+        }
+      } else if (phase === 'skip'){
+        heroBlockEl.classList.add('state-skip');
+        callLabelEl.classList.add('tone-muted');
+        callLabelEl.textContent = 'SKIP ROUND';
+        callSubEl.innerHTML = 'no clean lock before the window closed — sit this one out<br>' + elapsedTxt;
+        confFillEl.style.background = 'var(--dim)';
+        if (!notifiedSkip){
+          notifiedSkip = true;
+          fireAlert('BTC 15m — skip', 'No lock this round', 'skip');
+        }
+      }
+
+      reasonsEl.innerHTML = reasons.map(r => '<span>' + r + '</span>').join('');
+    }
+
+    const dockX = axisX - 6;
+    const maxBarW = tapeRight ? (axisX - tapeRight - 14) : 160;
+    const rowGap = 0.16;
+
+    if (maxBin > 0){
+      pocEl.textContent = '$' + fmt(pocPrice);
+      for (let i=0;i<ROWS;i++){
+        const tot = upVols[i] + dnVols[i];
+        if (tot <= 0) continue;
+        const yTop = priceToY(lo + (i+1)*binH);
+        const yBot = priceToY(lo + i*binH);
+        const rowH = Math.max(1, (yBot - yTop));
+        const gap = rowH * rowGap / 2;
+        const y0 = yTop + gap, y1 = yBot - gap;
+        const isPoc = i === pocBin;
+        const totalW = (tot / maxBin) * maxBarW;
+        const upW = totalW * (upVols[i] / tot);
+        const dnW = totalW - upW;
+        const xDock = dockX;
+        const xUpEdge = xDock - upW;
+        const xDnEdge = xUpEdge - dnW;
+
+        if (isPoc){
+          ctx.fillStyle = '#f0c94a';
+          ctx.fillRect(Math.min(xDnEdge,xUpEdge), y0, xDock - Math.min(xDnEdge,xUpEdge), Math.max(1,y1-y0));
+        } else {
+          if (upW > 0){
+            ctx.fillStyle = 'rgba(38,166,144,0.85)';
+            ctx.fillRect(xUpEdge, y0, xDock - xUpEdge, Math.max(1,y1-y0));
+          }
+          if (dnW > 0){
+            ctx.fillStyle = 'rgba(224,69,95,0.85)';
+            ctx.fillRect(xDnEdge, y0, xUpEdge - xDnEdge, Math.max(1,y1-y0));
+          }
+        }
+      }
+      const pocY = priceToY(pocPrice);
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle = '#f0c94a';
+      ctx.beginPath(); ctx.moveTo(tapeRight, pocY); ctx.lineTo(dockX, pocY); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  function fmtDur(ms){
+    const s = Math.max(0, Math.round(ms/1000));
+    const m = Math.floor(s/60), ss = s%60;
+    return m + 'm' + String(ss).padStart(2,'0') + 's';
+  }
+
+  resizeCanvas();
+  updateWinRateUI();
+  renderHistoryChips();
+  seed();
+  connect();
+  requestAnimationFrame(draw);
+  setInterval(resetWindowIfNeeded, 1000);
+})();
+</script>
+</body>
+</html>
