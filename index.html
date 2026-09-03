@@ -1331,15 +1331,22 @@
           <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">DOWN CHANCE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-down">—</div></div>
           <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">HOURLY STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-strike">—</div></div>
           <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">BTC VS STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-distance">—</div></div>
-          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">15M CONFIRM</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m15">—</div></div>
-          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">5M TRIGGER</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m5">—</div></div>
+          <div class="btcv-hourly-ai-cell" style="display:none"><div class="btcv-hourly-ai-k">15M CONFIRM</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m15">—</div></div>
+          <div class="btcv-hourly-ai-cell" style="display:none"><div class="btcv-hourly-ai-k">5M TRIGGER</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m5">—</div></div>
         </div>
         <div class="btcv-hourly-ladder" id="btcv-hourly-ladder" style="display:none;"></div>
-        <div class="btcv-hourly-ai-why" id="btcv-hourly-ai-why">Hourly ladder is confirmation — it shows where the % is going relative to price to beat. 5m/15m time the entry (early vs normal). Not the boss.</div>
+        <div class="btcv-hourly-ai-why" id="btcv-hourly-ai-why">Hourly ladder is confirmation — it shows where the % is going relative to price to beat. The card only prints a confident BET when the live round agrees with the hourly thesis on both the fast and slow tape.</div>
         <div class="btcv-hourly-ai-note">Entry: use price-to-beat trend as primary, hourly ladder + candle confirmation for timing (early vs normal). Hold while the thesis remains valid.</div>
       </div>
 
-      <div class="btcv-mtf-card" id="btcv-mtf-card">
+      <!-- MULTI-TIMEFRAME BIAS card hidden per direct request: this readout is "info only,
+           not a vote" and routinely reads FLAT ("FLAT battling"), which isn't actionable —
+           and it disagreed with the live round read often enough to read as a wrong/conflicting
+           call rather than help. The AI Edge Signal card above (hourly thesis + edge + ladder
+           + 5M/15M trigger/confirm) already covers trend confirmation without this noise.
+           Markup + populating JS (refreshMTF / mtfM5El etc.) left intact so nothing else
+           that references those elements breaks; only the card itself is hidden. -->
+      <div class="btcv-mtf-card" id="btcv-mtf-card" style="display:none">
         <div class="btcv-mtf-title">MULTI-TIMEFRAME BIAS</div>
         <div class="btcv-mtf-row"><span>5m</span><div class="btcv-mtf-meter"><div class="btcv-mtf-meter-fill" id="btcv-mtf-m5-meter"></div></div><b class="tone-muted" id="btcv-mtf-m5">—</b></div>
         <!-- 15m: native 15-minute candles (Coinbase granularity=900), one bar back -- "add 15
@@ -5156,6 +5163,15 @@
     const strongHourly = thesisPct >= hourlyEntryMin && thesisDir !== 0;
     const priceAgrees = priceDir === 0 || priceDir === thesisDir;
     const shortTermOpposite = m15Dir === -thesisDir && m5Dir === -thesisDir;
+    // tapeConfirms: BOTH short-term timeframes (5m AND 15m) point the SAME way as the hourly
+    // thesis. The hourly strike read is a coarser, lagging read — wrong at turning points, and
+    // at a reversal the 5m flips first, then the 15m. Requiring BOTH to confirm before a
+    // confident BET (and before the entry gate below treats the hourly read as "ok") means the
+    // moment the faster tape turns against the thesis, the card flips to "WAIT — tape conflict"
+    // and the entry lock closes — so the AI can no longer print "BET UP" while DOWN is already
+    // winning (IMG_0525). Direct request: "why would I want it to read wrong — the point of
+    // having the data." A flat/MIXED tape also reads as not-confirmed → WAIT, not a wrong BET.
+    const tapeConfirms = thesisDir !== 0 && m15Dir === thesisDir && m5Dir === thesisDir;
     const entryOk = strongHourly && priceAgrees && !shortTermOpposite && edge >= 63;
 
     // Thesis is considered broken only when the hourly ladder crosses back through neutral.
@@ -5164,7 +5180,7 @@
     const thesisBroken = thesisDir !== 0 && thesisPct < 53;
 
     return {row, yesProb, upChance, downChance, thesisDir, thesisPct, edge, distancePct, priceDir,
-      h1Dir, m15Dir, m5Dir, entryOk, thesisBroken, fetchedAt: hourlyLadderFetchedAt,
+      h1Dir, m15Dir, m5Dir, entryOk, tapeConfirms, thesisBroken, fetchedAt: hourlyLadderFetchedAt,
       eventTicker: hourlyLadderData.eventTicker, closeTime: hourlyLadderData.closeTime,
       ladder: hourlyLadderData.strikes, currentStrike: row};
   }
@@ -5196,9 +5212,19 @@
     els.status.textContent = 'EDGE ' + a.edge + '%';
     els.thesis.textContent = side + ' ' + a.thesisPct + '%';
     els.thesis.className = 'btcv-hourly-ai-big ' + (a.thesisDir > 0 ? 'tone-up' : a.thesisDir < 0 ? 'tone-down' : 'tone-gold');
-    const action = a.entryOk ? 'BET ' + side : (a.thesisDir !== 0 ? 'WAIT ' + side : 'WAIT');
+    // Gate the confident "BET" tag: only print it when the hourly thesis AGREES with the
+    // live round on BOTH the fast (5m) and slow (15m) tape. The hourly strike read is a
+    // coarser, lagging read — wrong at turning points, exactly when you'd most act on a
+    // confident "BET." So a thesis the live round is fighting (or where either tape is
+    // flat/MIXED) gets "WAIT — tape conflict" instead of a wrong confident call. Direct request:
+    // "why would I want it to read wrong — the point of having the data." tapeConfirms is
+    // computed in computeHourlyStrikeAI() so the SAME gate is applied to the actual entry lock
+    // (hourlyNormalOk) — the display and the entry gate can never disagree.
+    const action = (a.entryOk && a.tapeConfirms) ? 'BET ' + side
+      : a.entryOk ? 'WAIT — tape conflict'
+      : (a.thesisDir !== 0 ? 'WAIT ' + side : 'WAIT');
     els.action.textContent = action;
-    els.action.className = 'btcv-hourly-ai-action ' + (a.entryOk ? (a.thesisDir>0?'up':'down') : 'wait');
+    els.action.className = 'btcv-hourly-ai-action ' + ((a.entryOk && a.tapeConfirms) ? (a.thesisDir>0?'up':'down') : 'wait');
     els.sub.textContent = 'hourly @ strike · closest ladder $' + Number(a.row.strike).toLocaleString(undefined,{maximumFractionDigits:0}) +
       ' · edge ' + a.edge + '%';
     els.up.textContent = Math.round(a.upChance) + '%';
@@ -5241,11 +5267,13 @@
       ladderEl.style.display = 'none';
     }
 
-    els.why.innerHTML = a.entryOk
-      ? '<b>' + side + ' setup:</b> price-to-beat trend is primary, hourly ladder confirms direction, and short-term tape is not fighting it.'
-      : a.thesisBroken
-        ? '<b>THESIS WEAK:</b> hourly probability is near neutral — no new entry and an existing position should be watched for a real break.'
-        : '<b>WAIT:</b> price-to-beat trend is the primary read, but entry timing/value is not strong enough yet. Use hourly ladder + candle confirmation for early vs normal entry.';
+    els.why.innerHTML = (a.entryOk && a.tapeConfirms)
+      ? '<b>' + side + ' setup:</b> price-to-beat trend is primary, hourly ladder confirms direction, and the live round is not fighting it.'
+      : a.entryOk
+        ? '<b>TAPE CONFLICT:</b> hourly thesis says ' + side + ' but the live round is flat or fighting it — no confident BET shown, treat as a wait until the round agrees.'
+        : a.thesisBroken
+          ? '<b>THESIS WEAK:</b> hourly probability is near neutral — no new entry and an existing position should be watched for a real break.'
+          : '<b>WAIT:</b> price-to-beat trend is the primary read, but entry timing/value is not strong enough yet. Use hourly ladder + candle confirmation for early vs normal entry.';
   }
 
   // Refresh often enough to catch changes in the hourly ladder without hammering the server.
@@ -6924,6 +6952,29 @@
       ctx.fillText('▭ OB $' + fmt(zonePrice,0), tapeLeft + 4, Math.min(yTop, yBot) + 10);
     }
 
+    // ---- active bear/bull trap level — horizontal line on the chart ----
+    // Direct request: the bear/bull trap warning only lived in the scrolling ticker text,
+    // never on the chart itself, so there was nothing visual marking the price you were
+    // supposed to close at when the warning fired. Now, while a fakeout event is still
+    // "active" (see FAKEOUT_ACTIVE_MS), a dashed line sits at the trap's price level across
+    // the whole tape with a label — same treatment the OB zones and entry/exit markers get —
+    // so you can see the close target at a glance instead of having to read the ticker.
+    // type 'high' = bull trap (broke above recent high, closed back under → watch downside);
+    // type 'low'  = bear trap (broke below recent low, closed back over → watch upside).
+    if (lastFakeoutEvent && (Date.now() - lastFakeoutEvent.time) < FAKEOUT_ACTIVE_MS && isFinite(lastFakeoutEvent.level)){
+      const trapY = priceToY(lastFakeoutEvent.level);
+      const isBear = lastFakeoutEvent.type === 'low';
+      ctx.setLineDash([5,4]);
+      ctx.strokeStyle = isBear ? 'rgba(224,69,95,0.9)' : 'rgba(224,160,32,0.9)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(tapeLeft, trapY); ctx.lineTo(tapeRight, trapY); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = isBear ? 'rgba(224,69,95,0.95)' : 'rgba(224,160,32,0.95)';
+      ctx.font = '9px ui-monospace, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText((isBear ? '📍 bear trap / close $' : '📍 bull trap / close $') + fmt(lastFakeoutEvent.level, 0), tapeLeft + 4, trapY - 4);
+    }
+
     for (let i=viewStart; i<viewStart+viewCount; i++){
       const c = candles[i];
       if (!c) continue;
@@ -6973,7 +7024,8 @@
       'hard-floor-stop': 'hard stop',
       'late-flip-override': 'late flip',
       'profit-lock': 'profit locked',
-      'peak-giveback-lock': 'gave back peak'
+      'peak-giveback-lock': 'gave back peak',
+      'lotto-prep-exit': 'reversal prep'
     };
     for (const ev of exitEvents){
       if (ev.time < viewT0 || ev.time > viewT1) continue;
@@ -7439,8 +7491,11 @@
         // authorize a bet that fights the hourly thesis. This is the defining rule of this
         // separate AI file.
         const hourlyEntryRead = computeHourlyStrikeAI();
-        const hourlyNormalOk = !!(hourlyEntryRead && hourlyEntryRead.entryOk && hourlyEntryRead.thesisDir === rawSign);
-        const hourlyLottoOk = !!(hourlyEntryRead && hourlyEntryRead.thesisDir === rawSign && hourlyEntryRead.thesisPct >= 55 && hourlyEntryRead.priceDir !== -rawSign);
+        // hourlyNormalOk mirrors the AI Edge display exactly: entryOk AND thesisDir === rawSign
+        // AND tapeConfirms (short-term tape agreeing). So when the card reads "WAIT — tape
+        // conflict," the entry lock is also closed — display and entry gate can never disagree.
+        const hourlyNormalOk = !!(hourlyEntryRead && hourlyEntryRead.entryOk && hourlyEntryRead.tapeConfirms && hourlyEntryRead.thesisDir === rawSign);
+        const hourlyLottoOk = !!(hourlyEntryRead && hourlyEntryRead.tapeConfirms && hourlyEntryRead.thesisDir === rawSign && hourlyEntryRead.thesisPct >= 55 && hourlyEntryRead.priceDir !== -rawSign);
         const normalLockOk = winnerLocked && (entryReady || goConfirmed) && kalshiRoomOk && hourlyNormalOk;
         const wouldLock = (normalLockOk || wouldFastLock || wouldAgentFastLock) && rawSign !== 0 && lossLegsThisRound < entryCapNow && !cooldownActive && hourlyNormalOk;
         const lottoLocked = sideLockStart !== null && lockedMs >= LOTTO_HOLD_MS && agreeCount >= GO_MIN_SCORE && momAgrees && pressureAgrees && kalshiAgrees;
@@ -7771,6 +7826,18 @@
         const diff = committedSide === 'UP' ? (lastPrice - lockedPrice) : (lockedPrice - lastPrice);
         if (diff > peakDiffThisLeg) peakDiffThisLeg = diff; // see PEAK_LOCK_MIN_PEAK below for why this is tracked
         const inProfit = diff >= EXIT_MIN_PROFIT;
+        // (lotto-prep-exit gate removed — see the branch below; it now keys off the opposite
+        // lean directly, not a precomputed cheap-side flag.)
+        // Trap-against-leg: an active bear/bull trap warning that points AGAINST this leg's
+        // direction (bull trap → watch downside → against an UP leg; bear trap → watch upside →
+        // against a DOWN leg). Used by the lotto-prep-exit branch below as a reversal trigger —
+        // direct request: "read the warning," not just the opposite vote lean. A trap firing
+        // against your leg is a genuine reversal warning even before the opposite lean holds 15s.
+        const trapActiveNow = !!(lastFakeoutEvent && (Date.now() - lastFakeoutEvent.time) < FAKEOUT_ACTIVE_MS && isFinite(lastFakeoutEvent.level));
+        const trapAgainstLeg = trapActiveNow && (
+          (committedSide === 'UP' && lastFakeoutEvent.type === 'high') ||
+          (committedSide === 'DOWN' && lastFakeoutEvent.type === 'low')
+        );
         // was the leg currently open a late "lotto" entry (see LOTTO_HOLD_MS)? entryMarkers'
         // last entry is always the one still open at this point — a new one can't be pushed
         // until this leg closes (only one leg open at a time) — so this is reliable however
@@ -8255,6 +8322,67 @@
           // Gated on lossLegsThisRound (incremented just above when diff<0), not total
           // entries — see lossLegsThisRound's declaration for why wins don't count here.
           phase = lossLegsThisRound < (remainMs <= LOTTO_WINDOW_MS ? LATE_WINDOW_MAX_ENTRIES : MAX_ENTRIES_PER_ROUND) ? 'scanning' : 'done';
+        } else if (!wasLottoLeg && remainMs <= 180000 && remainMs > 10000 &&
+                   (trapAgainstLeg || (oppLockStart !== null && oppHeldMs >= LOTTO_HOLD_MS))){
+          // ---- REVERSAL PREP EXIT (label "lotto-prep-exit"): flatten the moment a
+          // lotto-strength reversal is detected — either an active bear/bull trap firing
+          // against this leg ("read the warning") OR the opposite side holding a lotto-
+          // strength lean (LOTTO_HOLD_MS, 15s). Direct request: "if she would of jumped out
+          // with profit or read the warning she would of knew there was a reversal and just
+          // waited for lotto, or jumped out at profit second leg like she is supposed to."
+          // The gap this closes: every flip-driven exit below requires a FULLY confirmed flip
+          // (oppHeldMs >= EXIT_FLIP_MS, 30s uninterrupted opposite lean). In a choppy reversal
+          // the opposite lean holds 15-29s, resets, holds again — never reaching 30s — so NO
+          // exit fires, and a leg that's already underwater just rides the reversal all the way
+          // to stop-loss (IMG_0525: held UP while DOWN came for the win, stop-loss -$49). This
+          // branch is the missing link: once EITHER an active trap fires against the leg OR the
+          // opposite side has held a lotto-strength lean (15s — the same bar the lotto entry
+          // itself uses, NOT the full 30s confirmed flip) inside the last 3 minutes, flatten
+          // the current leg right now — taking profit if it's up, cutting the loss if it's down
+          // — instead of waiting on a 30s confirm that may never come.
+          //
+          // EXIT vs RE-ENTRY ARE SEPARATED: the protective flatten fires all the way down to
+          // 10s left (remainMs > 10000) — the user's point is "don't stay in the bad leg," and
+          // that matters even when it's too late to catch a lotto afterward. The lotto
+          // re-entry (carry-over of sideLockStart = oppLockStart, and phase='scanning') only
+          // happens when there's still runway for it (REAL_ORDER_CUTOFF_MS + REENTRY_COOLDOWN_MS
+          // + LOTTO_HOLD_MS + 5s = 101s). Below that, flatten and set phase='done' — bank the
+          // exit, don't force a lotto that can't land before Kalshi's buy buttons grey out.
+          // Note: this CAN still fire after flipConfirmed (>=30s) if the dedicated flip branches
+          // above didn't catch it (e.g. a small loss in (-STOP_LOSS_MIN, 0) they don't cover) —
+          // that's intentional, it's the catch-all for the choppy-reversal gap. Placed last so
+          // every smarter exit gets first dibs.
+          const lottoRunwayOk = remainMs > (REAL_ORDER_CUTOFF_MS + REENTRY_COOLDOWN_MS + LOTTO_HOLD_MS + 5000);
+          const _trapTriggered = trapAgainstLeg && !(oppLockStart !== null && oppHeldMs >= LOTTO_HOLD_MS);
+          realizedPnl += diff;
+          closedLegs.push({side: committedSide, entryPrice: lockedPrice, exitPrice: lastPrice, diff, exitAt: nowTs, conf: lockedConf, entryYesProb: lockedYesProb, exitReason: 'lotto-prep-exit', lotto: wasLottoLeg, entryDiag});
+          if (lastRealOrder) placeCloseOrder(true);
+          if (diff < 0) lossLegsThisRound++;
+          if (wasLottoLeg) recordLottoClose(committedSide, diff, nowTs);
+          exitEvents.push({time: nowTs, price: lastPrice, diff, type: 'exit', exitReason: 'lotto-prep-exit'});
+          if (exitEvents.length > 10) exitEvents.splice(0, exitEvents.length - 10);
+          fireAlert('BTC 15m — reversal prep exit', committedSide + ' ' + (diff>=0?'+$':'-$') + fmt(Math.abs(diff),0) + ' · ' + (_trapTriggered ? 'trap warning against leg' : 'reversal detected') + (lottoRunwayOk ? ', flattening to catch the lotto' : ', flattening (too late for lotto)'), diff >= 0 ? 'win' : 'loss');
+
+          // Carry-over only when there's runway for the lotto to actually fire afterward, and
+          // only on the opposite-lean path. A trap-triggered exit (no opposite lean yet) resets
+          // the lean read clean (sideLockStart = null) so the lotto re-proves itself. If no
+          // runway, don't re-enter at all (phase='done') — the protective flatten was the win.
+          lastRawSign = (lottoRunwayOk && !_trapTriggered) ? oppositeSign : 0;
+          sideLockStart = (lottoRunwayOk && !_trapTriggered) ? oppLockStart : null;
+          committedSide = null;
+          lockedPrice = null;
+          lockedAt = null;
+          lockedYesProb = null;
+          lockedConf = 0;
+          notifiedLock = false;
+          oppLockStart = null;
+          exitWarnActive = false;
+          exitWarnLastFireAt = null;
+          exitWarnWorstDiff = null;
+          kalshiExtremeStart = null;
+          kalshiConfirmStart = null;
+          reentryCooldownUntil = nowTs + REENTRY_COOLDOWN_MS;
+          phase = lottoRunwayOk ? (lossLegsThisRound < (remainMs <= LOTTO_WINDOW_MS ? LATE_WINDOW_MAX_ENTRIES : MAX_ENTRIES_PER_ROUND) ? 'scanning' : 'done') : 'done';
         } else {
           // ---- losing flip, agent didn't (or couldn't) auto-exit: escalating advisory ----
           // A single warning that goes silent while the loss keeps growing is a real
