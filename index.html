@@ -563,6 +563,20 @@
     .btcv-ipad-compact .btcv-essentials-strip .btcv-mtf-card{padding:6px 8px; border-top:none;}
     .btcv-ipad-compact .btcv-essentials-strip .btcv-mtf-row{margin:3px 0; font-size:10.5px;}
     .btcv-ipad-compact .btcv-essentials-strip .btcv-mtf-note{display:none;}
+    /* Hourly Strike AI Edge card -- promoted out of the Details drawer onto the main
+       strip. Shrunk to match its neighbors so it doesn't dominate the header. */
+    .btcv-ipad-compact .btcv-essentials-strip #btcv-hourly-ai-card{padding:6px 8px; border-top:none;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-title{font-size:9px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-big{font-size:22px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-sub{font-size:9px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-action{font-size:10px; padding:3px 6px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-bar{height:6px; margin:5px 0 5px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-grid{gap:5px 6px; margin-top:5px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-cell{padding:4px 6px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-k{font-size:8px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-v{font-size:10.5px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-note{display:none;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-why{display:none;}
     /* Probability card, same shrink treatment as its neighbors now that it lives in this
        strip instead of the drawer -- was only ever styled for full desktop size before. */
     .btcv-ipad-compact .btcv-essentials-strip .btcv-prob-pct{font-size:16px;}
@@ -8503,7 +8517,7 @@
           // between independent-agent-essentials and mtf-card, so the strip's left-to-right
           // order matches its original DOM order: This Round's Call, Independent Agent,
           // BTC Model Probability, Multi-Timeframe Bias.
-          ['btcv-hero-block', 'btcv-independent-agent-essentials', 'btcv-probability-card', 'btcv-mtf-card', 'btcv-details-toggle'].forEach(id => {
+          ['btcv-hero-block', 'btcv-independent-agent-essentials', 'btcv-probability-card', 'btcv-mtf-card', 'btcv-hourly-ai-card', 'btcv-details-toggle'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             homes.push({ id, parent: el.parentNode, nextSibling: el.nextSibling });
