@@ -1,4 +1,4 @@
-// /api/btc-liquidations — OKX forced-liquidation orders for BTC swaps.
+// /api/btc-liquidations — OKX forced-liquidation orders for BTC swaps (US-accessible).
 // Returns { liquidations:[{price,size,side,time}], venue }.
 // side = direction of the FORCED order: 'buy' = short squeeze / forced buying (bullish),
 // 'sell' = long liquidation / forced selling (bearish). Empty list is a valid quiet market.
@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=15');
   res.setHeader('Access-Control-Allow-Origin', '*');
   try {
-    const r = await fetch('https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&ccy=BTC', { headers: { Accept: 'application/json' } });
+    const r = await fetch('https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instFamily=BTC-USDT&state=filled', { headers: { Accept: 'application/json' } });
     if (!r.ok) throw new Error('okx ' + r.status);
     const d = await r.json();
     const liqs = [];
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       for (const x of det) {
         const side = (x.side || '').toLowerCase() === 'buy' ? 'buy' : ((x.side || '').toLowerCase() === 'sell' ? 'sell' : null);
         if (!side) continue;
-        const price = Number(x.px), size = Number(x.sz), time = Number(x.ts);
+        const price = Number(x.bkPx), size = Number(x.sz), time = Number(x.time || x.ts);
         if (Number.isFinite(price) && Number.isFinite(size) && Number.isFinite(time)) liqs.push({ price, size, side, time });
       }
     }
