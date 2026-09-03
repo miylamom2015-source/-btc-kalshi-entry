@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/kalshi", "destination": "/api/kalshi" }
+  ]
+}

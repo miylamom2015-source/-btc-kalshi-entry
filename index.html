@@ -852,6 +852,60 @@
 </style>
 </head>
 <body>
+<style>
+  #btcv-paper-banner{position:fixed;top:0;left:0;right:0;height:22px;z-index:99999;background:#c9a227;color:#0a0d12;font:600 11px/22px ui-monospace,monospace;text-align:center;letter-spacing:.06em;pointer-events:none;}
+  .btcv-root{margin-top:22px !important;height:calc(100dvh - 22px) !important;}
+</style>
+<script>
+// ===== PAPER MODE — simulated trades, NO real Kalshi orders are ever placed. =====
+(function(){
+  const STORE_KEY='btcv_paper_broker_v1';
+  function loadStore(){try{return JSON.parse(localStorage.getItem(STORE_KEY))||{positions:{},trades:[]};}catch(e){return{positions:{},trades:[]};}}
+  function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
+  function json(o){return new Response(JSON.stringify(o),{status:200,headers:{'Content-Type':'application/json'}});}
+  function getTicker(url){try{const u=new URL(url,location.origin);return u.searchParams.get('ticker')||'';}catch(e){return '';}}
+  const origFetch=window.fetch;
+  window.fetch=function(input,init){
+    const url=(typeof input==='string')?input:((input&&input.url)||'');
+    // POST /api/kalshi-order -> simulate a full fill, record paper position
+    if(url.indexOf('/api/kalshi-order')===0&&init&&init.method&&init.method.toUpperCase()==='POST'){
+      let order={};try{order=JSON.parse(init.body);}catch(e){}
+      const store=loadStore();
+      const isClose=order.action==='sell'||order.auto_close===true;
+      const fillCount=Math.max(0,Number(order.count)||0);
+      if(isClose){
+        if(store.positions[order.ticker])store.positions[order.ticker].position=0;
+        store.trades.push({t:Date.now(),ticker:order.ticker,side:order.side,action:'sell',count:fillCount,paper:true});
+      }else{
+        const sign=order.side==='yes'?1:-1;
+        store.positions[order.ticker]={position:sign*fillCount,kalshiSide:order.side,count:fillCount,entryPriceCents:(order.yes_price||order.no_price||null),openedAt:Date.now()};
+        store.trades.push({t:Date.now(),ticker:order.ticker,side:order.side,action:'buy',count:fillCount,entryPriceCents:(order.yes_price||order.no_price||null),paper:true});
+      }
+      saveStore(store);
+      return Promise.resolve(json({order:{status:'filled',fill_count:fillCount},fill_count:fillCount,paper:true}));
+    }
+    // GET /api/kalshi-positions -> signed paper position (yes=+, no=-, 0=flat)
+    if(url.indexOf('/api/kalshi-positions')===0){
+      const tk=getTicker(url);const store=loadStore();const p=store.positions[tk];
+      return Promise.resolve(json({position:p?(Number(p.position)||0):0,paper:true}));
+    }
+    // GET /api/kalshi-ws-position -> fresh WS-style position cache
+    if(url.indexOf('/api/kalshi-ws-position')===0){
+      const tk=getTicker(url);const store=loadStore();const p=store.positions[tk];
+      return Promise.resolve(json({ticker:tk,position:p?(Number(p.position)||0):0,updatedAt:Date.now(),paper:true}));
+    }
+    return origFetch.apply(this,arguments);
+  };
+  function showBanner(){
+    if(document.getElementById('btcv-paper-banner'))return;
+    const b=document.createElement('div');b.id='btcv-paper-banner';
+    b.textContent='PAPER MODE — simulated trades, no real Kalshi orders placed';
+    (document.body||document.documentElement).insertBefore(b,(document.body&&document.body.firstChild)||null);
+  }
+  if(document.body)showBanner();else document.addEventListener('DOMContentLoaded',showBanner);
+  console.log('[paper-broker] installed: kalshi-order/positions intercepted, no real orders will fire');
+})();
+</script>
 <div class="btcv-root">
   <div id="btcv-toast-wrap" class="btcv-toast-wrap"></div>
 
