@@ -339,6 +339,14 @@
   .btcv-winrate-card{padding:18px 20px;}
 
   .btcv-kalshi-card{padding:18px 20px; border-top:1px solid var(--line);}
+  /* Promoted Kalshi panel — prominent price-to-beat and where-%-is-going readout */
+  .btcv-kalshi-focus-row{display:flex; gap:16px; margin-bottom:14px; align-items:stretch;}
+  .btcv-kalshi-focus-price, .btcv-kalshi-focus-trend{flex:1; display:flex; flex-direction:column; gap:4px;}
+  .btcv-kalshi-focus-trend{text-align:right;}
+  .btcv-kalshi-focus-label{font-size:9px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase;}
+  .btcv-kalshi-focus-val{font-size:22px; font-weight:800; line-height:1.1; color:var(--text);}
+  .btcv-kalshi-focus-trend-val{font-size:22px; font-weight:800; line-height:1.1;}
+  @media (max-width:700px){.btcv-kalshi-focus-val,.btcv-kalshi-focus-trend-val{font-size:18px;}}
   .btcv-kalshi-title{font-size:11px; letter-spacing:.1em; color:var(--dim); margin-bottom:10px; font-weight:600; display:flex; align-items:center; justify-content:space-between;}
   .btcv-kalshi-dot{width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:5px;}
   .btcv-kalshi-dot.live{background:var(--up);}
@@ -561,6 +569,11 @@
        possible since the whole node moved. Traded off deliberately: the 4 live bars matter
        far more moment-to-moment than the "info only, not a vote" caption underneath them). */
     .btcv-ipad-compact .btcv-essentials-strip .btcv-mtf-card{padding:6px 8px; border-top:none;}
+    .btcv-ipad-compact .btcv-essentials-strip #btcv-kalshi-promoted{padding:6px 8px; border-top:none;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-kalshi-focus-val{font-size:16px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-kalshi-focus-trend-val{font-size:16px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-kalshi-focus-label{font-size:7px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-kalshi-focus-row{gap:8px; margin-bottom:6px;}
     .btcv-ipad-compact .btcv-essentials-strip .btcv-mtf-row{margin:3px 0; font-size:10.5px;}
     .btcv-ipad-compact .btcv-essentials-strip .btcv-mtf-note{display:none;}
     /* Hourly Strike AI Edge card -- promoted out of the Details drawer onto the main
@@ -1197,46 +1210,24 @@
         <div class="btcv-mode-desc" id="btcv-mode-desc"></div>
       </div>
 
-      <!-- BTC MODEL PROBABILITY card -- big probability readout + per-source grid, styled
-           after the Independent Agent/MTF cards above; the outcome-read strip underneath
-           (NEXT 15M / PRICE 1H / etc.) is the Y/N-framed detail. See renderProbabilityCard()
-           for how every number here is derived -- nothing in this card is a new vote or
-           feeds back into the bot's own call/gate/exit logic, it's read-only context.
-           Layout: Y/N outcome rows + signal readiness sit right under the headline bar (the
-           part worth glancing at most), and the per-source grid (Strike/Agent removed --
-           both already shown elsewhere: Strike lives in the Independent Agent card, Agent's
-           call/confidence is the big % readout right above) is tucked behind a collapse
-           arrow so this card defaults to a short strip instead of permanently pushing the
-           chart down -- press the arrow to drop it open when you actually want the detail. -->
-
-
-        <!-- Separate strategy: hourly Kalshi ladder is PRIMARY, short timeframes only time the entry. -->
-        <div class="btcv-mtf-card" id="btcv-hourly-ai-card">
-          <div class="btcv-hourly-ai-head">
-            <div class="btcv-hourly-ai-title">🧠 HOURLY STRIKE AI EDGE · PRIMARY</div>
-            <span class="btcv-agent-badge" id="btcv-hourly-ai-status">LOADING</span>
-          </div>
-          <div class="btcv-hourly-ai-main">
-            <div>
-              <div class="btcv-hourly-ai-big" id="btcv-hourly-ai-thesis">—</div>
-              <div class="btcv-mtf-note" id="btcv-hourly-ai-sub">waiting for the live hourly strike ladder…</div>
-            </div>
-            <div class="btcv-hourly-ai-action wait" id="btcv-hourly-ai-action">WAIT</div>
-          </div>
-          <div class="btcv-hourly-ai-bar"><div class="btcv-hourly-ai-marker" id="btcv-hourly-ai-marker" style="left:50%"></div></div>
-          <div class="btcv-hourly-ai-grid">
-            <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">UP CHANCE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-up">—</div></div>
-            <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">DOWN CHANCE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-down">—</div></div>
-            <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">HOURLY STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-strike">—</div></div>
-            <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">BTC VS STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-distance">—</div></div>
-            <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">15M CONFIRM</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m15">—</div></div>
-            <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">5M TRIGGER</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m5">—</div></div>
-          </div>
-          <div class="btcv-hourly-ai-why" id="btcv-hourly-ai-why">Hourly ladder is the primary thesis. 5m/15m are timing/confirmation, not the boss.</div>
-          <div class="btcv-hourly-ai-note">Entry: prefer ≥60% hourly thesis + price/strike agreement + short-term confirmation. Hold while the hourly thesis remains valid. Normal peak-giveback exit is disabled in this separate strategy.</div>
+      <!-- KALSHI REAL PRICE TO BEAT — promoted to primary focus panel.
+           The number closest to price to beat and the vs-strike-% trend show where
+           the % is going, which is the primary read for entry/exit timing.
+           Hourly ladder (in AI Edge card below) is confirmation, not the boss. -->
+      <div class="btcv-kalshi-card" id="btcv-kalshi-promoted" style="border:1px solid var(--line); background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));">
+        <div class="btcv-kalshi-title">
+          <span><span class="btcv-kalshi-dot off" id="btcv-kalshi-dot"></span>🎯 KALSHI PRICE TO BEAT · PRIMARY</span>
         </div>
+        <div id="btcv-kalshi-body">
+          <div class="btcv-kv-row"><span>status</span><b>connecting…</b></div>
+        </div>
+      </div>
 
-      <div class="btcv-mtf-card" id="btcv-probability-card">
+      <!-- BTC MODEL PROBABILITY card -- replaced by AI Edge Signal below.
+           The AI Edge already gives a signal (UP/DOWN + edge%), making this
+           probability panel redundant. Card is hidden but kept in DOM so its
+           JS (renderProbabilityCard) doesn't error -- it just updates hidden elements. -->
+      <div class="btcv-mtf-card" id="btcv-probability-card" style="display:none;">
         <div class="btcv-prob-header-row">
           <div class="btcv-mtf-title">BTC MODEL PROBABILITY</div>
           <button type="button" class="btcv-prob-collapse-btn" id="btcv-prob-collapse-btn" aria-expanded="false" title="Show/hide per-source detail">▼</button>
@@ -1305,6 +1296,35 @@
         </div>
       </div>
 
+      <!-- AI EDGE SIGNAL — main panel (replaces BTC Model Probability).
+           The AI Edge already gives a directional signal (UP/DOWN + edge%),
+           so the separate probability panel is redundant. This card stays
+           visible as a main panel, not buried in details. -->
+      <div class="btcv-mtf-card" id="btcv-hourly-ai-card">
+        <div class="btcv-hourly-ai-head">
+          <div class="btcv-hourly-ai-title">🧠 AI EDGE SIGNAL</div>
+          <span class="btcv-agent-badge" id="btcv-hourly-ai-status">LOADING</span>
+        </div>
+        <div class="btcv-hourly-ai-main">
+          <div>
+            <div class="btcv-hourly-ai-big" id="btcv-hourly-ai-thesis">—</div>
+            <div class="btcv-mtf-note" id="btcv-hourly-ai-sub">waiting for the live hourly strike ladder…</div>
+          </div>
+          <div class="btcv-hourly-ai-action wait" id="btcv-hourly-ai-action">WAIT</div>
+        </div>
+        <div class="btcv-hourly-ai-bar"><div class="btcv-hourly-ai-marker" id="btcv-hourly-ai-marker" style="left:50%"></div></div>
+        <div class="btcv-hourly-ai-grid">
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">UP CHANCE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-up">—</div></div>
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">DOWN CHANCE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-down">—</div></div>
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">HOURLY STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-strike">—</div></div>
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">BTC VS STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-distance">—</div></div>
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">15M CONFIRM</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m15">—</div></div>
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">5M TRIGGER</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m5">—</div></div>
+        </div>
+        <div class="btcv-hourly-ai-why" id="btcv-hourly-ai-why">Hourly ladder is confirmation — it shows where the % is going relative to price to beat. 5m/15m time the entry (early vs normal). Not the boss.</div>
+        <div class="btcv-hourly-ai-note">Entry: use price-to-beat trend as primary, hourly ladder + candle confirmation for timing (early vs normal). Hold while the thesis remains valid.</div>
+      </div>
+
       <div class="btcv-mtf-card" id="btcv-mtf-card">
         <div class="btcv-mtf-title">MULTI-TIMEFRAME BIAS</div>
         <div class="btcv-mtf-row"><span>5m</span><div class="btcv-mtf-meter"><div class="btcv-mtf-meter-fill" id="btcv-mtf-m5-meter"></div></div><b class="tone-muted" id="btcv-mtf-m5">—</b></div>
@@ -1318,15 +1338,6 @@
         <div class="btcv-mtf-row"><span>1H</span><div class="btcv-mtf-meter"><div class="btcv-mtf-meter-fill" id="btcv-mtf-h1-meter"></div></div><b class="tone-muted" id="btcv-mtf-h1">—</b></div>
         <div class="btcv-mtf-row"><span>4H</span><div class="btcv-mtf-meter"><div class="btcv-mtf-meter-fill" id="btcv-mtf-h4-meter"></div></div><b class="tone-muted" id="btcv-mtf-h4">—</b></div>
         <div class="btcv-mtf-note">info only, not a vote — a projection from past candles, not a live read of this round's tape, so it doesn't gate or veto a lock</div>
-      </div>
-
-      <div class="btcv-kalshi-card">
-        <div class="btcv-kalshi-title">
-          <span><span class="btcv-kalshi-dot off" id="btcv-kalshi-dot"></span>KALSHI REAL PRICE TO BEAT</span>
-        </div>
-        <div id="btcv-kalshi-body">
-          <div class="btcv-kv-row"><span>status</span><b>connecting…</b></div>
-        </div>
       </div>
 
       <div class="btcv-winrate-card">
@@ -4236,9 +4247,11 @@
       proxy: '⚠ via third-party CORS proxy — not a direct connection to Kalshi',
     };
     kalshiBodyEl.innerHTML =
-      '<div class="btcv-kv-row"><span>price to beat</span><b>$' + kalshiMarket.floorStrike.toLocaleString(undefined,{maximumFractionDigits:0}) + '</b></div>' +
+      '<div class="btcv-kalshi-focus-row">' +
+        '<div class="btcv-kalshi-focus-price"><span class="btcv-kalshi-focus-label">PRICE TO BEAT</span><b class="btcv-kalshi-focus-val">$' + kalshiMarket.floorStrike.toLocaleString(undefined,{maximumFractionDigits:0}) + '</b></div>' +
+        '<div class="btcv-kalshi-focus-trend"><span class="btcv-kalshi-focus-label">WHERE % IS GOING</span><b id="btcv-strike-pct-trend" class="btcv-kalshi-focus-trend-val">—</b></div>' +
+      '</div>' +
       (gapToOurs != null ? '<div class="btcv-kv-row"><span>vs our anchor</span><b style="color:' + (gapToOurs>=0?'var(--up)':'var(--down)') + '">' + (gapToOurs>=0?'+':'') + fmt(gapToOurs) + '</b></div>' : '') +
-      '<div class="btcv-kv-row"><span>vs strike %</span><b id="btcv-strike-pct-trend">—</b></div>' +
       '<div class="btcv-kv-row"><span>crowd (YES)</span><b style="color:' + (yesPct>=50?'var(--up)':'var(--down)') + '">' + yesPct + '%</b></div>' +
       (spread != null ? '<div class="btcv-kv-row"><span>spread</span><b>' + Math.round(spread*100) + '¢</b></div>' : '') +
       '<div class="btcv-kv-row"><span>updated</span><b id="btcv-kalshi-age" style="opacity:.75;">' + formatKalshiAge() + '</b></div>' +
@@ -5102,8 +5115,9 @@
     const m15Dir = mtfLoaded ? (mtfBias.m15 > 0 ? 1 : mtfBias.m15 < 0 ? -1 : 0) : 0;
     const m5Dir = mtfLoaded ? (mtfBias.m5 > 0 ? 1 : mtfBias.m5 < 0 ? -1 : 0) : 0;
 
-    // Primary thesis strength comes from the hourly ladder. Confirmation adds edge, but can
-    // never reverse the hourly direction. This prevents a noisy 5m flip from becoming a trade.
+    // Hourly ladder provides confirmation of direction. Price-to-beat trend is primary.
+    // Confirmation adds edge, but can never reverse the hourly direction.
+    // This prevents a noisy 5m flip from becoming a trade.
     let edge = thesisPct;
     if (thesisDir !== 0){
       if (priceDir === thesisDir) edge += 6;
@@ -5176,10 +5190,10 @@
     const markerPct = Math.max(1, Math.min(99, a.yesProb*100));
     els.marker.style.left = markerPct + '%';
     els.why.innerHTML = a.entryOk
-      ? '<b>' + side + ' setup:</b> hourly thesis is primary, strike relationship agrees, and short-term tape is not actively fighting it.'
+      ? '<b>' + side + ' setup:</b> price-to-beat trend is primary, hourly ladder confirms direction, and short-term tape is not fighting it.'
       : a.thesisBroken
         ? '<b>THESIS WEAK:</b> hourly probability is near neutral — no new entry and an existing position should be watched for a real break.'
-        : '<b>WAIT:</b> hourly thesis is the answer, but entry timing/value is not strong enough yet. Let the 5m/15m confirm instead of chasing.';
+        : '<b>WAIT:</b> price-to-beat trend is the primary read, but entry timing/value is not strong enough yet. Use hourly ladder + candle confirmation for early vs normal entry.';
   }
 
   // Refresh often enough to catch changes in the hourly ladder without hammering the server.
@@ -5202,7 +5216,8 @@
     if (strikeVote) votes.push({source:'vs strike (round)', dir: strikeVote.dir, strength: strikeVote.strength, detail: strikeVote.detail});
     const kalshiVote = computeKalshiSignal();
     if (kalshiVote) votes.push({source:'Kalshi crowd', dir: kalshiVote.dir, strength: kalshiVote.strength, detail: kalshiVote.detail});
-    // HOURLY STRIKE AI — primary thesis. It is intentionally the strongest independent source.
+    // HOURLY STRIKE AI — confirmation signal. It provides directional confirmation
+    // alongside the price-to-beat trend, not as the sole primary.
     const hourlyAI = computeHourlyStrikeAI();
     if (hourlyAI && hourlyAI.thesisDir !== 0){
       votes.push({source:'Hourly @ strike', dir: hourlyAI.thesisDir, strength: Math.max(0, Math.min(1, (hourlyAI.thesisPct - 50) / 20)), detail: Math.round(hourlyAI.upChance) + '% UP / ' + Math.round(hourlyAI.downChance) + '% DOWN'});
@@ -8517,7 +8532,7 @@
           // between independent-agent-essentials and mtf-card, so the strip's left-to-right
           // order matches its original DOM order: This Round's Call, Independent Agent,
           // BTC Model Probability, Multi-Timeframe Bias.
-          ['btcv-hero-block', 'btcv-independent-agent-essentials', 'btcv-probability-card', 'btcv-mtf-card', 'btcv-hourly-ai-card', 'btcv-details-toggle'].forEach(id => {
+          ['btcv-hero-block', 'btcv-independent-agent-essentials', 'btcv-kalshi-promoted', 'btcv-hourly-ai-card', 'btcv-mtf-card', 'btcv-details-toggle'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             homes.push({ id, parent: el.parentNode, nextSibling: el.nextSibling });
