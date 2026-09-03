@@ -590,6 +590,11 @@
     .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-v{font-size:10.5px;}
     .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-note{display:none;}
     .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ai-why{display:none;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ladder{gap:1px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ladder-row{font-size:8px; padding:1px 2px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ladder-strike{min-width:42px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ladder-bar{height:5px;}
+    .btcv-ipad-compact .btcv-essentials-strip .btcv-hourly-ladder-pct{min-width:22px;}
     /* Probability card, same shrink treatment as its neighbors now that it lives in this
        strip instead of the drawer -- was only ever styled for full desktop size before. */
     .btcv-ipad-compact .btcv-essentials-strip .btcv-prob-pct{font-size:16px;}
@@ -870,6 +875,14 @@
 .btcv-hourly-ai-k{font-size:9px;color:var(--muted);letter-spacing:.05em;}
 .btcv-hourly-ai-v{font-size:12px;font-weight:700;margin-top:2px;}
 .btcv-hourly-ai-note{font-size:10px;line-height:1.35;color:var(--muted);margin-top:8px;}
+.btcv-hourly-ladder{margin-top:7px;display:flex;flex-direction:column;gap:2px;}
+.btcv-hourly-ladder-row{display:flex;align-items:center;gap:6px;font-size:10px;padding:2px 4px;border-radius:3px;}
+.btcv-hourly-ladder-row.active{background:rgba(255,255,255,.06);}
+.btcv-hourly-ladder-arrow{width:10px;text-align:center;font-weight:700;color:#fff;}
+.btcv-hourly-ladder-strike{font-weight:700;min-width:60px;}
+.btcv-hourly-ladder-bar{flex:1;height:8px;border-radius:3px;background:rgba(255,255,255,.05);overflow:hidden;}
+.btcv-hourly-ladder-bar-fill{height:100%;border-radius:3px;}
+.btcv-hourly-ladder-pct{min-width:35px;text-align:right;font-weight:700;}
 .btcv-hourly-ai-why{font-size:10px;line-height:1.35;margin-top:7px;}
 .btcv-hourly-ai-card.hourly-up{box-shadow:inset 3px 0 0 var(--up);}
 .btcv-hourly-ai-card.hourly-down{box-shadow:inset 3px 0 0 var(--down);}
@@ -1321,6 +1334,7 @@
           <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">15M CONFIRM</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m15">—</div></div>
           <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">5M TRIGGER</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m5">—</div></div>
         </div>
+        <div class="btcv-hourly-ladder" id="btcv-hourly-ladder" style="display:none;"></div>
         <div class="btcv-hourly-ai-why" id="btcv-hourly-ai-why">Hourly ladder is confirmation — it shows where the % is going relative to price to beat. 5m/15m time the entry (early vs normal). Not the boss.</div>
         <div class="btcv-hourly-ai-note">Entry: use price-to-beat trend as primary, hourly ladder + candle confirmation for timing (early vs normal). Hold while the thesis remains valid.</div>
       </div>
@@ -5097,8 +5111,11 @@
   }
 
   function computeHourlyStrikeAI(){
-    if (!hourlyLadderData || roundKalshiStrike == null || lastPrice == null) return null;
-    const row = nearestHourlyStrike(Number(roundKalshiStrike));
+    if (!hourlyLadderData || lastPrice == null) return null;
+    // Find the nearest hourly strike to the CURRENT PRICE (not the fixed round strike),
+    // so the strike MOVES during the round as price moves. This is the key fix: the
+    // hourly strike should track the live price, not be frozen to the round's floor.
+    const row = nearestHourlyStrike(lastPrice);
     if (!row) return null;
     const bid = Number(row.yesBid), ask = Number(row.yesAsk);
     if (!Number.isFinite(bid) || !Number.isFinite(ask)) return null;
@@ -5109,7 +5126,9 @@
     const downChance = (1 - yesProb) * 100;
     const thesisDir = upChance > downChance ? 1 : downChance > upChance ? -1 : 0;
     const thesisPct = Math.round(Math.max(upChance, downChance));
-    const distancePct = ((lastPrice - Number(roundKalshiStrike)) / Number(roundKalshiStrike)) * 100;
+    // Distance is now from the CURRENT PRICE to the hourly strike (not the round strike),
+    // so it updates as price moves during the round.
+    const distancePct = ((lastPrice - Number(row.strike)) / Number(row.strike)) * 100;
     const priceDir = distancePct > 0.015 ? 1 : distancePct < -0.015 ? -1 : 0;
     const h1Dir = mtfLoaded ? (mtfBias.h1 > 0 ? 1 : mtfBias.h1 < 0 ? -1 : 0) : 0;
     const m15Dir = mtfLoaded ? (mtfBias.m15 > 0 ? 1 : mtfBias.m15 < 0 ? -1 : 0) : 0;
@@ -5146,7 +5165,8 @@
 
     return {row, yesProb, upChance, downChance, thesisDir, thesisPct, edge, distancePct, priceDir,
       h1Dir, m15Dir, m5Dir, entryOk, thesisBroken, fetchedAt: hourlyLadderFetchedAt,
-      eventTicker: hourlyLadderData.eventTicker, closeTime: hourlyLadderData.closeTime};
+      eventTicker: hourlyLadderData.eventTicker, closeTime: hourlyLadderData.closeTime,
+      ladder: hourlyLadderData.strikes, currentStrike: row};
   }
 
   function renderHourlyStrikeAI(){
@@ -5189,6 +5209,38 @@
     els.m5.textContent = a.m5Dir === 0 ? 'MIXED' : (a.m5Dir===a.thesisDir?'TRIGGER':'OPPOSE');
     const markerPct = Math.max(1, Math.min(99, a.yesProb*100));
     els.marker.style.left = markerPct + '%';
+
+    // Render the hourly ladder with % next to each strike and an arrow pointing
+    // at the strike closest to the current price. This MOVES during the round as
+    // price moves — the active strike and its % update in real time.
+    const ladderEl = document.getElementById('btcv-hourly-ladder');
+    if (ladderEl && a.ladder && a.currentStrike){
+      const currentStrikeVal = Number(a.currentStrike.strike);
+      // Sort strikes high to low for display
+      const sorted = a.ladder.slice().sort((s1, s2) => Number(s2.strike) - Number(s1.strike));
+      ladderEl.style.display = 'block';
+      ladderEl.innerHTML = sorted.map(s => {
+        const k = Number(s.strike);
+        const b = Number(s.yesBid), a2 = Number(s.yesAsk);
+        if (!Number.isFinite(b) || !Number.isFinite(a2)) return '';
+        const prob = Math.max(0, Math.min(100, ((b + a2) / 2) * 100));
+        const isUp = prob >= 50;
+        const isActive = k === currentStrikeVal;
+        const pct = Math.round(prob);
+        const barColor = isUp ? 'var(--up)' : 'var(--down)';
+        const barWidth = Math.abs(prob - 50) * 2; // 0% at 50/50, 100% at 0 or 100
+        const arrow = isActive ? '<span class="btcv-hourly-ladder-arrow">→</span>' : '<span class="btcv-hourly-ladder-arrow"></span>';
+        const cls = 'btcv-hourly-ladder-row' + (isActive ? ' active' : '');
+        return '<div class="' + cls + '">' + arrow +
+          '<span class="btcv-hourly-ladder-strike">$' + k.toLocaleString(undefined,{maximumFractionDigits:0}) + '</span>' +
+          '<div class="btcv-hourly-ladder-bar"><div class="btcv-hourly-ladder-bar-fill" style="width:' + barWidth + '%;background:' + barColor + ';"></div></div>' +
+          '<span class="btcv-hourly-ladder-pct" style="color:' + barColor + '">' + pct + '%</span>' +
+          '</div>';
+      }).join('');
+    } else if (ladderEl){
+      ladderEl.style.display = 'none';
+    }
+
     els.why.innerHTML = a.entryOk
       ? '<b>' + side + ' setup:</b> price-to-beat trend is primary, hourly ladder confirms direction, and short-term tape is not fighting it.'
       : a.thesisBroken
@@ -5199,6 +5251,11 @@
   // Refresh often enough to catch changes in the hourly ladder without hammering the server.
   refreshHourlyLadderAI();
   setInterval(refreshHourlyLadderAI, 10000);
+  // Re-render the hourly ladder card every 2 seconds so the arrow and % move
+  // with the live price during a round, not just when the 10s ladder refresh lands.
+  // The ladder DATA (strikes + bid/ask) only changes every 10s, but the CLOSEST strike
+  // to the current price changes as price moves, so the arrow and active row shift.
+  setInterval(renderHourlyStrikeAI, 2000);
 
   function computeAgentSignalUncached(){
     const votes = [];
