@@ -1327,15 +1327,15 @@
         </div>
         <div class="btcv-hourly-ai-bar"><div class="btcv-hourly-ai-marker" id="btcv-hourly-ai-marker" style="left:50%"></div></div>
         <div class="btcv-hourly-ai-grid">
-          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">UP CHANCE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-up">—</div></div>
-          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">DOWN CHANCE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-down">—</div></div>
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">HOURLY ABOVE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-up">—</div></div>
+          <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">HOURLY BELOW</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-down">—</div></div>
           <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">HOURLY STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-strike">—</div></div>
           <div class="btcv-hourly-ai-cell"><div class="btcv-hourly-ai-k">BTC VS STRIKE</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-distance">—</div></div>
           <div class="btcv-hourly-ai-cell" style="display:none"><div class="btcv-hourly-ai-k">15M CONFIRM</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m15">—</div></div>
           <div class="btcv-hourly-ai-cell" style="display:none"><div class="btcv-hourly-ai-k">5M TRIGGER</div><div class="btcv-hourly-ai-v" id="btcv-hourly-ai-m5">—</div></div>
         </div>
         <div class="btcv-hourly-ladder" id="btcv-hourly-ladder" style="display:none;"></div>
-        <div class="btcv-hourly-ai-why" id="btcv-hourly-ai-why">Hourly ladder is confirmation — it shows where the % is going relative to price to beat. The card only prints a confident BET when the live round agrees with the hourly thesis on both the fast and slow tape.</div>
+        <div class="btcv-hourly-ai-why" id="btcv-hourly-ai-why">Hourly ladder is confirmation — it shows where the % is going relative to price to beat. The card only prints BET when the hourly odds agree with the live round.</div>
         <div class="btcv-hourly-ai-note">Entry: use price-to-beat trend as primary, hourly ladder + candle confirmation for timing (early vs normal). Hold while the thesis remains valid.</div>
       </div>
 
@@ -5174,13 +5174,29 @@
     const tapeConfirms = thesisDir !== 0 && m15Dir === thesisDir && m5Dir === thesisDir;
     const entryOk = strongHourly && priceAgrees && !shortTermOpposite && edge >= 63;
 
+    // LIVE ROUND vs HOURLY CONFLICT (secondary guard): the hourly ladder is now a correct
+    // market-derived P(above strike), but it's still a longer-horizon (1-hour) read and can lag a
+    // fast 15m reversal. The bot trades the live 15m round (kalshiMarket.yesProb). When that live
+    // round is strongly going the OPPOSITE way of the (now-correct) hourly thesis, surface it —
+    // "LIVE DOWN · hourly conflict" — and block entries. This is the secondary safety layer on top
+    // of the fixed thesis; the PRIMARY fix was correcting the range-market misread in the API
+    // (KXBTC -B markets are $100 RANGE markets, not above/below markets). Two tiers: a 70%+
+    // conflict (blocks entries, shows "LIVE DOWN · hourly conflict"), and a CONFIRMED reversal
+    // (85%+ OR spot already moving with the live round) that earns the stronger "REVERSAL" label.
+    const liveUpPct = (kalshiMarket && kalshiMarket.yesProb != null) ? kalshiMarket.yesProb * 100 : null;
+    const liveDownPct = liveUpPct != null ? 100 - liveUpPct : null;
+    const liveStrongPct = liveUpPct != null ? Math.max(liveUpPct, liveDownPct) : 0;
+    const liveDir = (liveUpPct != null && Math.abs(liveUpPct - liveDownPct) > 0.5) ? (liveUpPct > liveDownPct ? 1 : -1) : 0;
+    const liveRoundConflict = thesisDir !== 0 && liveDir !== 0 && liveStrongPct >= 70 && liveDir === -thesisDir;
+    const confirmedLiveReversal = liveRoundConflict && (liveStrongPct >= 85 || priceDir === liveDir);
+
     // Thesis is considered broken only when the hourly ladder crosses back through neutral.
     // This is intentionally slower than the entry trigger so a winning trade isn't dumped on
     // one candle of noise.
     const thesisBroken = thesisDir !== 0 && thesisPct < 53;
 
     return {row, yesProb, upChance, downChance, thesisDir, thesisPct, edge, distancePct, priceDir,
-      h1Dir, m15Dir, m5Dir, entryOk, tapeConfirms, thesisBroken, fetchedAt: hourlyLadderFetchedAt,
+      h1Dir, m15Dir, m5Dir, entryOk, tapeConfirms, liveRoundConflict, confirmedLiveReversal, liveDir, liveStrongPct, thesisBroken, fetchedAt: hourlyLadderFetchedAt,
       eventTicker: hourlyLadderData.eventTicker, closeTime: hourlyLadderData.closeTime,
       ladder: hourlyLadderData.strikes, currentStrike: row};
   }
@@ -5212,14 +5228,14 @@
     els.status.textContent = 'EDGE ' + a.edge + '%';
     els.thesis.textContent = side + ' ' + a.thesisPct + '%';
     els.thesis.className = 'btcv-hourly-ai-big ' + (a.thesisDir > 0 ? 'tone-up' : a.thesisDir < 0 ? 'tone-down' : 'tone-gold');
-    // Gate the confident "BET" tag: only print it when the hourly thesis AGREES with the
-    // live round on BOTH the fast (5m) and slow (15m) tape. The hourly strike read is a
-    // coarser, lagging read — wrong at turning points, exactly when you'd most act on a
-    // confident "BET." So a thesis the live round is fighting (or where either tape is
-    // flat/MIXED) gets "WAIT — tape conflict" instead of a wrong confident call. Direct request:
-    // "why would I want it to read wrong — the point of having the data." tapeConfirms is
-    // computed in computeHourlyStrikeAI() so the SAME gate is applied to the actual entry lock
-    // (hourlyNormalOk) — the display and the entry gate can never disagree.
+    // Gate the confident "BET" tag: only print it when the hourly odds agree with the live
+    // round (both 5m and 15m pointing the same way as the hourly thesis). The hourly strike
+    // read is a coarser, lagging read — wrong at turning points, exactly when you'd most act
+    // on a confident "BET." So a thesis the live round is fighting (or where either tape is
+    // flat/MIXED) gets "WAIT — tape conflict" instead of a wrong confident call. Direct
+    // request: "why would I want it to read wrong — the point of having the data."
+    // tapeConfirms is computed in computeHourlyStrikeAI() so the SAME gate is applied to the
+    // actual entry lock (hourlyNormalOk) — the display and the entry gate can never disagree.
     const action = (a.entryOk && a.tapeConfirms) ? 'BET ' + side
       : a.entryOk ? 'WAIT — tape conflict'
       : (a.thesisDir !== 0 ? 'WAIT ' + side : 'WAIT');
@@ -5274,6 +5290,27 @@
         : a.thesisBroken
           ? '<b>THESIS WEAK:</b> hourly probability is near neutral — no new entry and an existing position should be watched for a real break.'
           : '<b>WAIT:</b> price-to-beat trend is the primary read, but entry timing/value is not strong enough yet. Use hourly ladder + candle confirmation for early vs normal entry.';
+
+    // LIVE ROUND OVERRIDE: if the live 15m round the bot trades is strongly going the OPPOSITE
+    // way of the hourly thesis, the hourly headline above is lagging/wrong for the round in
+    // front of you — so override the headline + action + why to lead with the live round.
+    // Direct request: "how does it stay on up if there was a reversal and down won."
+    // Two tiers: a 70%+ conflict shows "LIVE DOWN · hourly conflict"; a CONFIRMED reversal
+    // (85%+ OR spot already moving with the live round) shows the stronger "REVERSAL" label.
+    // The HOURLY UP / HOURLY DOWN cells below are left showing the hourly ladder odds — so you
+    // see WHY: the hourly lags while the live round has already turned.
+    if (a.confirmedLiveReversal || a.liveRoundConflict){
+      const liveSide = a.liveDir > 0 ? 'UP' : 'DOWN';
+      const livePct = Math.round(a.liveStrongPct);
+      const reversed = a.confirmedLiveReversal;
+      els.thesis.textContent = (reversed ? 'REVERSAL · ' : 'LIVE ') + liveSide + ' ' + livePct + '% · hourly conflict';
+      els.thesis.className = 'btcv-hourly-ai-big ' + (a.liveDir > 0 ? 'tone-up' : 'tone-down');
+      card.classList.remove('hourly-up','hourly-down','hourly-wait');
+      card.classList.add(a.liveDir > 0 ? 'hourly-up' : 'hourly-down');
+      els.action.textContent = 'WAIT — live round ' + liveSide.toLowerCase();
+      els.action.className = 'btcv-hourly-ai-action wait';
+      els.why.innerHTML = '<b>' + (reversed ? 'REVERSAL' : 'HOURLY CONFLICT') + ':</b> the live round is ' + livePct + '% ' + liveSide + ' while the hourly ladder still reads ' + side + ' ' + a.thesisPct + '% — the hourly market lags at turning points. ' + (liveSide === 'DOWN' ? 'Down' : 'Up') + ' is winning the round the bot actually trades, so do NOT treat the hourly ' + side + ' as the call. Wait for the hourly to catch up or the round to close.';
+    }
   }
 
   // Refresh often enough to catch changes in the hourly ladder without hammering the server.
@@ -7494,8 +7531,8 @@
         // hourlyNormalOk mirrors the AI Edge display exactly: entryOk AND thesisDir === rawSign
         // AND tapeConfirms (short-term tape agreeing). So when the card reads "WAIT — tape
         // conflict," the entry lock is also closed — display and entry gate can never disagree.
-        const hourlyNormalOk = !!(hourlyEntryRead && hourlyEntryRead.entryOk && hourlyEntryRead.tapeConfirms && hourlyEntryRead.thesisDir === rawSign);
-        const hourlyLottoOk = !!(hourlyEntryRead && hourlyEntryRead.tapeConfirms && hourlyEntryRead.thesisDir === rawSign && hourlyEntryRead.thesisPct >= 55 && hourlyEntryRead.priceDir !== -rawSign);
+        const hourlyNormalOk = !!(hourlyEntryRead && hourlyEntryRead.entryOk && hourlyEntryRead.tapeConfirms && !hourlyEntryRead.liveRoundConflict && hourlyEntryRead.thesisDir === rawSign);
+        const hourlyLottoOk = !!(hourlyEntryRead && hourlyEntryRead.tapeConfirms && !hourlyEntryRead.liveRoundConflict && hourlyEntryRead.thesisDir === rawSign && hourlyEntryRead.thesisPct >= 55 && hourlyEntryRead.priceDir !== -rawSign);
         const normalLockOk = winnerLocked && (entryReady || goConfirmed) && kalshiRoomOk && hourlyNormalOk;
         const wouldLock = (normalLockOk || wouldFastLock || wouldAgentFastLock) && rawSign !== 0 && lossLegsThisRound < entryCapNow && !cooldownActive && hourlyNormalOk;
         const lottoLocked = sideLockStart !== null && lockedMs >= LOTTO_HOLD_MS && agreeCount >= GO_MIN_SCORE && momAgrees && pressureAgrees && kalshiAgrees;
