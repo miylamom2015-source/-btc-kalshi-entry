@@ -53,7 +53,13 @@ export default async function handler(req, res) {
 
     // 2) Collect range buckets for the CURRENT event only. Each -B market is a $100 range
     //    [floor_strike, floor_strike+100); YES = P(BTC in that range at close).
-    const buckets = []; // {strike, prob (raw yes midpoint, dust already zeroed)}
+    //    REQUIRE A REAL BID (yes_bid > 0). A current hourly event spans strikes $67k–$86k (~186
+    //    markets), and almost all of those far-tail strikes carry NO bid — only a speculative
+    //    ask (2¢–10¢). Counting their yes_mid inflated total mass to ~8x. A genuine bid is a
+    //    real market valuation, and only near-price buckets have one (~10–15 of them), summing
+    //    to ~0.9 — a clean distribution. This also makes the read fail-closed naturally: a thin
+    //    market with almost no bids returns too little mass and is rejected below.
+    const buckets = []; // {strike, prob}
     for (const m of ms){
       if (m.event_ticker !== curEvent) continue;
       const t = m.ticker || '';
@@ -61,26 +67,22 @@ export default async function handler(req, res) {
       const strike = m.floor_strike != null ? toNum(m.floor_strike) : (m.floor_strike_dollars != null ? parseFloat(m.floor_strike_dollars) : null);
       if (strike == null) continue;
       const yb = m.yes_bid_dollars != null ? parseFloat(m.yes_bid_dollars) : (m.yes_bid != null ? m.yes_bid / 100 : null);
+      if (yb == null || yb <= 0) continue; // no real bid → speculative far-tail strike, skip
       const ya = m.yes_ask_dollars != null ? parseFloat(m.yes_ask_dollars) : (m.yes_ask != null ? m.yes_ask / 100 : null);
-      if (yb == null && ya == null) continue;
-      const yesMid = (yb != null && ya != null) ? (yb + ya) / 2 : (yb ?? ya);
-      if (yesMid == null || yesMid <= 0) continue;
-      // Dust cleanup: buckets with NO real bid AND only a one-cent ask are far-tail dust
-      // (hundreds of 1¢ asks that inflated total mass to ~1.9). Zero them before normalizing.
-      const isDust = (yb == null || yb <= 0) && (ya != null && ya <= 0.01);
-      buckets.push({ strike, prob: isDust ? 0 : yesMid });
+      const prob = (ya != null && ya > 0) ? (yb + ya) / 2 : yb; // mid when an ask exists, else the bid
+      if (prob <= 0) continue;
+      buckets.push({ strike, prob });
     }
     if (!buckets.length) return res.status(502).json({ error: 'no range buckets for current event', strikes: [] });
 
-    // 3) Normalize over the non-dust mass so probabilities sum to 1.0.
+    // 3) Normalize over the real-bid mass so probabilities sum to 1.0. (Bids are conservative —
+    //    sum < 1.0 — so this also corrects for spread.)
     let mass = 0;
     for (const b of buckets) mass += b.prob;
-    // FAIL CLOSED: if the cleaned mass is way off 1.0, the Kalshi data is partial/overlapping/
-    // stale — do NOT fabricate confident above/below odds. Return empty so the frontend shows
-    // UNAVAILABLE/WAIT and the entry gates stay closed (real-money-adjacent: better no read
-    // than a wrong one). 0.70–1.30 tolerates a few edge buckets; anything beyond is corrupt.
-    if (mass < 0.70 || mass > 1.30) return res.status(502).json({ error: 'hourly range data unreliable (mass ' + mass.toFixed(3) + ')', strikes: [] });
-    if (mass <= 0) return res.status(502).json({ error: 'hourly range data unreliable (no mass)', strikes: [] });
+    // FAIL CLOSED: if the real-bid mass is way off, the Kalshi data is thin/partial/corrupt —
+    //    do NOT fabricate above/below odds. Return empty so the frontend shows UNAVAILABLE/WAIT
+    //    and entry gates stay closed (real-money-adjacent: better no read than a wrong one).
+    if (mass < 0.50 || mass > 1.30) return res.status(502).json({ error: 'hourly range data unreliable (mass ' + mass.toFixed(3) + ')', strikes: [] });
     for (const b of buckets) b.prob /= mass;
 
     // 4) Cumulative P(BTC >= strike) per strike = Σ bucket prob for floors >= strike (disjoint
